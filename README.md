@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/brand/ctiops-logo-dark.svg" alt="CTI Ops" width="360"></p>
+
 # CTI Ops Platform — P4 Phishing Campaign Clustering & P6 Sector Threat Landscape
 
 An enterprise-style threat-intelligence platform built for the SOCRadar Senior CTI Ops Engineer project.

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="CTI Ops">
+  <rect width="64" height="64" rx="15" fill="#3987e5"/>
+  <!-- radar sweep trailing the beam -->
+  <path d="M32 32 L21.72 19.74 A16 16 0 0 1 44.26 21.71 Z" fill="#fff" fill-opacity=".16"/><path d="M32 32 L33.39 16.06 A16 16 0 0 1 44.26 21.71 Z" fill="#fff" fill-opacity=".26"/>
+  <!-- inner range ring -->
+  <circle cx="32" cy="32" r="8.5" fill="none" stroke="#fff" stroke-opacity=".5" stroke-width="2.5"/>
+  <!-- outer ring, open where the beam exits -->
+  <path d="M48.31 24.39 A18 18 0 1 1 42.32 17.26" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
+  <!-- beam -->
+  <path d="M32 32 L44.26 21.71" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="32" cy="32" r="3.4" fill="#fff"/>
+  <!-- the finding -->
+  <circle cx="45.79" cy="20.43" r="5.2" fill="#ff7a3d" stroke="#3987e5" stroke-width="2"/>
+</svg>

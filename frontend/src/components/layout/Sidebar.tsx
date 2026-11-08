@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { PanelLeftClose, PanelLeftOpen, ShieldHalf } from 'lucide-react'
+import { PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import s from './Sidebar.module.css'
 import { NAV } from './nav'
 import { api } from '../../lib/api'
@@ -40,7 +40,7 @@ export function Sidebar({ rail, mobileOpen, onToggleRail }: { rail: boolean; mob
   return (
     <aside className={s.sidebar} data-rail={rail} data-open={mobileOpen}>
       <NavLink to="/" className={s.brand} aria-label="CTI Ops home">
-        <span className={s.logo}><ShieldHalf size={17} /></span>
+        <img className={s.logoImg} src="/brand/ctiops-mark.svg" width={30} height={30} alt="" />
         {!rail && <span className={s.brandText}><b>CTI Ops</b><span>Threat intelligence services</span></span>}
       </NavLink>
       <nav className={s.nav} aria-label="Main">

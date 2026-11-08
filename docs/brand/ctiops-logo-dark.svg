@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 80" role="img" aria-label="CTI Ops">
+  <rect width="280" height="80" rx="16" fill="#121211"/>
+  <g transform="translate(14 12) scale(0.875)">
+    <rect width="64" height="64" rx="15" fill="#3987e5"/>
+    <path d="M32 32 L21.72 19.74 A16 16 0 0 1 44.26 21.71 Z" fill="#fff" fill-opacity=".16"/><path d="M32 32 L33.39 16.06 A16 16 0 0 1 44.26 21.71 Z" fill="#fff" fill-opacity=".26"/>
+    <circle cx="32" cy="32" r="8.5" fill="none" stroke="#fff" stroke-opacity=".5" stroke-width="2.5"/>
+    <path d="M48.31 24.39 A18 18 0 1 1 42.32 17.26" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
+    <path d="M32 32 L44.26 21.71" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="32" cy="32" r="3.4" fill="#fff"/>
+    <circle cx="45.79" cy="20.43" r="5.2" fill="#ff7a3d" stroke="#3987e5" stroke-width="2"/>
+  </g>
+  <text x="84" y="40" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="31" letter-spacing="-0.6" fill="#f4f3ef"><tspan font-weight="750">CTI</tspan><tspan font-weight="500" fill="#3987e5"> Ops</tspan></text>
+  <text x="85" y="60" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="11.5" letter-spacing="1.6" fill="#8e8c85">THREAT INTELLIGENCE</text>
+</svg>
