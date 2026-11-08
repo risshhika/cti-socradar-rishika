@@ -1,0 +1,93 @@
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: var(--topbar-h);
+  padding: 0 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--page);
+  flex-shrink: 0;
+}
+.menu {
+  display: none;
+}
+.search {
+  flex: 1;
+  max-width: 520px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 34px;
+  padding: 0 10px 0 12px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  color: var(--text-3);
+  font-size: var(--fs-md);
+  cursor: pointer;
+  text-align: left;
+}
+.search:hover {
+  border-color: var(--border-strong);
+  color: var(--text-2);
+}
+.search span {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.fresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 30px;
+  padding: 0 10px;
+  margin-right: 4px;
+  border-radius: 999px;
+  font-size: var(--fs-sm);
+  color: var(--text-3);
+  white-space: nowrap;
+}
+.fresh i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--good);
+}
+.fresh[data-state="stale"] i {
+  background: var(--sev-medium);
+}
+.spin {
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 768px) {
+  .topbar {
+    padding: 0 10px;
+    gap: 6px;
+  }
+  .menu {
+    display: inline-grid;
+  }
+  .search kbd,
+  .freshText {
+    display: none;
+  }
+}
+.scope { display: flex; gap: 6px; min-width: 0; overflow: hidden; }
+.chip { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--border); color: var(--text-2); font-size: var(--fs-sm); white-space: nowrap; text-decoration: none !important; }
+.chip:hover { border-color: var(--border-strong); color: var(--text); }
+.chip b { font-size: 10px; font-weight: 700; color: var(--accent); letter-spacing: .04em; }
+@media (max-width: 1380px) { .scope { display: none; } }

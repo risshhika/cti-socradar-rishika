@@ -1,0 +1,78 @@
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 14px 16px 12px;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-1);
+  color: var(--text);
+  text-decoration: none;
+  transition: border-color 0.12s, background 0.12s;
+}
+.tile:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-2);
+  text-decoration: none;
+}
+.label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fs-md);
+  color: var(--text-2);
+}
+.window {
+  margin-left: auto;
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+}
+.row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+/* Proportional figures on stat values (tabular only where numbers align). */
+.value {
+  font-size: var(--fs-2xl);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-3);
+}
+.delta[data-tone="bad"] {
+  color: var(--bad-text);
+}
+.delta[data-tone="good"] {
+  color: var(--good-text);
+}
+.vs {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+}
+.spark {
+  margin: 2px -4px 0;
+}
+.foot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  min-height: 20px;
+}
+.note {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  line-height: 1.4;
+}

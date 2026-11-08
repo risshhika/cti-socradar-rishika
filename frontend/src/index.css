@@ -1,0 +1,106 @@
+/*
+ * Design system ported from Mintverse (web/src/theme/tokens.css + styles/global.css).
+ * Tailwind is kept for layout utilities only; colour, type and radius come from the tokens.
+ */
+@import "tailwindcss";
+@import "./styles/global.css";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+@theme {
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+/* Legacy aliases: pages written against the first design keep working on the new tokens. */
+:root {
+  --bg: var(--page);
+  --bg-elev: var(--surface-1);
+  --bg-sunken: var(--surface-2);
+  --fg: var(--text);
+  --fg-muted: var(--text-3);
+  --fg-faint: var(--text-3);
+  --ok: var(--good);
+  --warn: var(--sev-medium);
+  --danger: var(--sev-critical);
+  --info: var(--accent);
+  --accent-fg: #fff;
+  --chart-1: var(--series-1);
+  --chart-2: var(--series-2);
+  --chart-3: var(--series-3);
+  --chart-4: var(--series-4);
+  --chart-5: var(--series-5);
+  --chart-6: var(--series-7);
+  --chart-grid: var(--grid);
+}
+
+body { font-size: var(--fs-base); }
+
+.bg-app { background: var(--page); }
+.bg-elev { background: var(--surface-1); }
+.bg-sunken { background: var(--surface-2); }
+.border-app { border-color: var(--border); }
+.border-strong { border-color: var(--border-strong); }
+.text-fg { color: var(--text); }
+.text-muted { color: var(--text-3); }
+.text-secondary { color: var(--text-2); }
+.text-faint { color: var(--text-3); opacity: 0.8; }
+.text-accent { color: var(--accent); }
+.bg-accent { background: var(--accent); color: #fff; }
+.text-ok { color: var(--good-text); }
+.text-warn { color: var(--sev-medium); }
+.text-danger { color: var(--bad-text); }
+.text-info { color: var(--accent); }
+
+.card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-1);
+}
+.mono { font-family: var(--mono); font-size: 12px; }
+.scrollbar-thin { scrollbar-width: thin; }
+
+/* Tables: Mintverse DataTable look (sticky surface header, 38px rows, hairlines). */
+table.data { width: 100%; border-collapse: separate; border-spacing: 0; font-size: var(--fs-md); }
+table.data th {
+  position: sticky; top: 0; z-index: 1; height: 34px; padding: 0 10px;
+  background: var(--surface-1); border-bottom: 1px solid var(--border-strong);
+  color: var(--text-3); font-size: var(--fs-sm); font-weight: 600; text-align: left; white-space: nowrap; user-select: none;
+}
+table.data td { padding: 9px 10px; border-bottom: 1px solid var(--border); color: var(--text-2); vertical-align: middle; }
+table.data tbody tr:hover td { background: var(--surface-2); color: var(--text); }
+table.data tr.clickable { cursor: pointer; }
+table.data th button.sort { display: inline-flex; align-items: center; gap: 4px; border: 0; padding: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
+table.data th button.sort:hover { color: var(--text); }
+
+/* Briefing prose */
+.prose-brief { color: var(--text); font-size: var(--fs-base); line-height: 1.65; }
+.prose-brief h1 { font-size: 24px; font-weight: 650; letter-spacing: -0.02em; margin: 0 0 .6rem; }
+.prose-brief h2 { font-size: 16px; font-weight: 650; margin: 1.6rem 0 .6rem; padding-bottom: .35rem; border-bottom: 1px solid var(--border); }
+.prose-brief h3 { font-size: 14px; font-weight: 650; margin: 1.1rem 0 .4rem; }
+.prose-brief p, .prose-brief li { color: var(--text-2); }
+.prose-brief strong { color: var(--text); }
+.prose-brief ul { padding-left: 1.2rem; margin: .4rem 0; list-style: disc; }
+.prose-brief ol { padding-left: 1.2rem; margin: .4rem 0; list-style: decimal; }
+.prose-brief table { border-collapse: collapse; margin: .8rem 0; font-size: var(--fs-sm); width: 100%; }
+.prose-brief th, .prose-brief td { border-bottom: 1px solid var(--border); padding: 7px 10px; text-align: left; }
+.prose-brief th { color: var(--text-3); font-weight: 600; border-bottom-color: var(--border-strong); }
+.prose-brief code { font-family: var(--mono); font-size: 12px; background: var(--surface-3); padding: 1px 5px; border-radius: 4px; }
+.prose-brief blockquote { border-left: 3px solid var(--accent); margin: .8rem 0; padding: .4rem .9rem; color: var(--text-2); background: var(--accent-soft); border-radius: 0 var(--r-md) var(--r-md) 0; }
+.prose-brief a { color: var(--accent); }
+
+/* Section heading used between dashboard bands */
+.section-label {
+  display: flex; align-items: center; gap: 10px; margin: 26px 0 12px;
+  font-size: 10.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3);
+}
+.section-label::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+
+@media print {
+  aside, header[data-topbar] { display: none !important; }
+  main { overflow: visible !important; }
+  :root { --page: #fff; --surface-1: #fff; --text: #000; --text-2: #222; --text-3: #555; --border: #ddd; }
+  .card { box-shadow: none; }
+  .analyst-only { display: none !important; }
+}

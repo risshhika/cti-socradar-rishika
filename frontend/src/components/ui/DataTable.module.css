@@ -1,0 +1,66 @@
+.wrap {
+  overflow: auto;
+  border-radius: var(--r-md);
+}
+.table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--fs-md);
+}
+.table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  height: 34px;
+  padding: 0 10px;
+  background: var(--surface-1);
+  border-bottom: 1px solid var(--border-strong);
+  color: var(--text-3);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+  user-select: none;
+}
+.sortBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.sortBtn:hover {
+  color: var(--text);
+}
+.table td {
+  height: 38px;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-2);
+  white-space: nowrap;
+  max-width: 360px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.table tr[data-clickable="true"] {
+  cursor: pointer;
+}
+.table tbody tr:hover td {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.table tbody tr:focus-visible td {
+  background: var(--accent-soft);
+}
+.table tbody tr:focus-visible {
+  outline: none;
+}
+.right {
+  text-align: right !important;
+  font-variant-numeric: tabular-nums;
+}

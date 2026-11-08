@@ -1,0 +1,175 @@
+/*
+ * Design tokens. Dark is the default; light is a separately stepped theme, not an
+ * inversion. Chart colours come from the validated data-viz palette:
+ *   - categorical slots 1-8 in fixed order (never cycled; a 9th series is "Other")
+ *   - one sequential hue (blue) for every heatmap / calendar / map
+ *   - severity uses the reserved status palette and always ships with a label
+ * The app reads these at runtime to build the ECharts theme (echartsTheme.ts).
+ */
+:root,
+:root[data-theme="dark"],
+/* a subtree that stays dark in either theme (the ransomware situation room) */
+.force-dark {
+  color-scheme: dark;
+
+  /* surfaces */
+  --page: #0d0d0d;
+  --sidebar: #121211;
+  --surface-1: #1a1a19;          /* cards & chart surface (validated) */
+  --surface-2: #222220;          /* hover, raised */
+  --surface-3: #2c2c2a;          /* pressed, inputs */
+  --border: rgba(255, 255, 255, 0.09);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --overlay: rgba(0, 0, 0, 0.55);
+
+  /* ink */
+  --text: #f4f3ef;
+  --text-2: #c3c2b7;
+  --text-3: #8e8c85;
+  --grid: #2c2c2a;
+  --axis: #383835;
+
+  /* accent = categorical slot 1 */
+  --accent: #3987e5;
+  --accent-hover: #5598e7;
+  --accent-soft: rgba(57, 135, 229, 0.14);
+  --focus: rgba(57, 135, 229, 0.55);
+
+  /* categorical (dark steps) */
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --series-5: #d55181;
+  --series-6: #008300;
+  --series-7: #9085e9;
+  --series-8: #e66767;
+  --series-other: #6f6e69;
+
+  /* sequential blue, near-zero recedes toward the dark surface */
+  --seq-0: #1c2633;
+  --seq-1: #104281;
+  --seq-2: #184f95;
+  --seq-3: #256abf;
+  --seq-4: #3987e5;
+  --seq-5: #6da7ec;
+  --seq-6: #9ec5f4;
+
+  /* severity / status (reserved; always paired with a text label) */
+  --sev-critical: #d03b3b;
+  --sev-high: #ec835a;
+  --sev-medium: #fab219;
+  --sev-low: #7d8fa9;
+  --sev-unknown: #6f6e69;
+  --good: #0ca30c;
+  --good-text: #0ca30c;
+  --bad-text: #ff7070;
+
+  /* AI assist: its own hue, never a severity or a chart series; always paired with the sparkle mark */
+  --ai: #a996f2;
+  --ai-soft: rgba(169, 150, 242, 0.1);
+  --ai-line: rgba(169, 150, 242, 0.55);
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-2: 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --page: #f3f3f0;
+  --sidebar: #ebebe6;
+  --surface-1: #fcfcfb;
+  --surface-2: #f4f4f1;
+  --surface-3: #ebeae6;
+  --border: rgba(11, 11, 11, 0.1);
+  --border-strong: rgba(11, 11, 11, 0.18);
+  --overlay: rgba(20, 20, 18, 0.35);
+
+  --text: #0b0b0b;
+  --text-2: #52514e;
+  --text-3: #7c7a74;
+  --grid: #e1e0d9;
+  --axis: #c3c2b7;
+
+  --accent: #2a78d6;
+  --accent-hover: #256abf;
+  --accent-soft: rgba(42, 120, 214, 0.1);
+  --focus: rgba(42, 120, 214, 0.45);
+
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --series-5: #e87ba4;
+  --series-6: #008300;
+  --series-7: #4a3aa7;
+  --series-8: #e34948;
+  --series-other: #a3a19a;
+
+  /* sequential blue, near-zero recedes toward the light surface */
+  --seq-0: #eef4fc;
+  --seq-1: #cde2fb;
+  --seq-2: #9ec5f4;
+  --seq-3: #6da7ec;
+  --seq-4: #3987e5;
+  --seq-5: #256abf;
+  --seq-6: #184f95;
+
+  --sev-critical: #d03b3b;
+  --sev-high: #ec835a;
+  --sev-medium: #fab219;
+  --sev-low: #6b7a90;
+  --sev-unknown: #a3a19a;
+  --good: #0ca30c;
+  --good-text: #006300;
+  --bad-text: #b42323;
+
+  --ai: #5b3fc4;
+  --ai-soft: rgba(91, 63, 196, 0.07);
+  --ai-line: rgba(91, 63, 196, 0.45);
+
+  --shadow-1: 0 1px 2px rgba(11, 11, 11, 0.06);
+  --shadow-2: 0 12px 32px rgba(11, 11, 11, 0.14);
+}
+
+:root {
+  /* FIRST TLP 2.0 colours, shown on black in both themes as the standard specifies */
+  --tlp-bg: #000000;
+  --tlp-red: #ff2b2b;
+  --tlp-amber: #ffc000;
+  --tlp-green: #33ff00;
+  --tlp-clear: #ffffff;
+
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --fs-xs: 11px;
+  --fs-sm: 12px;
+  --fs-md: 13px;
+  --fs-base: 14px;
+  --fs-lg: 16px;
+  --fs-xl: 20px;
+  --fs-2xl: 28px;
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --sidebar-w: 232px;
+  --sidebar-rail: 60px;
+  --topbar-h: 56px;
+}
+
+/* Presentation mode: larger type, analyst-only controls hidden. */
+:root[data-present="1"] {
+  --fs-base: 15px;
+  --fs-md: 14px;
+  --fs-sm: 13px;
+  --fs-2xl: 34px;
+}
+:root[data-present="1"] .analyst-only {
+  display: none !important;
+}
+
+.force-dark {
+  color: var(--text);
+  color-scheme: dark;
+}

@@ -1,0 +1,96 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-1);
+}
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px 0;
+}
+.titles {
+  flex: 1;
+  min-width: 0;
+}
+.title {
+  font-size: var(--fs-base);
+  font-weight: 600;
+  color: var(--text);
+}
+.question {
+  margin-top: 2px;
+  font-size: var(--fs-sm);
+  color: var(--text-3);
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  flex-shrink: 0;
+  max-width: 100%;
+}
+.actions :global(.icon-btn) {
+  width: 28px;
+  height: 28px;
+}
+.body {
+  position: relative;
+  flex: 1;
+  padding: 10px 16px 6px;
+  transition: opacity 0.15s;
+}
+.body[data-refetching="true"] {
+  opacity: 0.55;
+}
+.foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 16px 12px;
+  border-top: 1px solid var(--border);
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+}
+.foot b {
+  font-weight: 600;
+  color: var(--text-2);
+}
+.sep::before {
+  content: "·";
+  margin-right: 8px;
+}
+
+.tableView {
+  max-height: 320px;
+  overflow: auto;
+  font-size: var(--fs-sm);
+}
+.tableView table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.tableView th,
+.tableView td {
+  padding: 6px 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.tableView th {
+  position: sticky;
+  top: 0;
+  background: var(--surface-1);
+  color: var(--text-3);
+  font-weight: 600;
+}
+.tableView td:not(:first-child),
+.tableView th:not(:first-child) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}

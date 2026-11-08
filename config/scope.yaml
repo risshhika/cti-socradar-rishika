@@ -1,0 +1,32 @@
+# Analyst-editable scope for both pipelines. The UI (Settings page) writes this file too.
+phishing:
+  sector: "Financial services & payments"
+  brands:
+    - PayPal
+    - Chase
+    - Wells Fargo
+    - Bank of America
+    - HSBC
+    - Barclays
+    - Santander
+    - Revolut
+    - Coinbase
+    - Binance
+  days_back: 14
+  max_samples: 400
+  # urlscan.io public search is rate-limited to 30 req/min per IP without a key.
+  urlscan_queries_per_brand: 2
+landscape:
+  sector: "Healthcare"
+  region: "Europe"
+  months: 6
+  # Public blogs / news feeds mined for initial-access-broker reporting (RSS/Atom).
+  iab_feeds:
+    - https://therecord.media/feed
+    - https://cyble.com/feed/
+    - https://socradar.io/feed/
+    - https://www.group-ib.com/blog/rss/
+    - https://krebsonsecurity.com/feed/
+    - https://feeds.feedburner.com/TheHackersNews
+    - https://www.darkreading.com/rss.xml
+    - https://intel471.com/blog/feed

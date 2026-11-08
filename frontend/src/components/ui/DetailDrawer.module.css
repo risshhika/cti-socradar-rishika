@@ -1,0 +1,228 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--overlay);
+  z-index: 60;
+}
+.panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(560px, 100vw);
+  z-index: 61;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-1);
+  border-left: 1px solid var(--border-strong);
+  box-shadow: var(--shadow-2);
+  animation: slideIn 0.18s ease-out;
+}
+@keyframes slideIn {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .panel {
+    animation: none;
+  }
+}
+.head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.headText {
+  flex: 1;
+  min-width: 0;
+}
+.kind {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.title {
+  margin-top: 2px;
+  font-size: var(--fs-xl);
+  font-weight: 650;
+  word-break: break-word;
+}
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px 28px;
+}
+.section + .section {
+  margin-top: 20px;
+}
+.h {
+  margin-bottom: 8px;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.p {
+  margin: 0;
+  color: var(--text-2);
+  line-height: 1.6;
+}
+.kev {
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  border: 1px solid color-mix(in srgb, var(--sev-critical) 40%, transparent);
+  background: color-mix(in srgb, var(--sev-critical) 7%, transparent);
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 16px;
+}
+.kv {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.k {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+}
+.v {
+  color: var(--text);
+  font-size: var(--fs-md);
+}
+.v[data-severe="true"] {
+  color: var(--bad-text);
+  font-weight: 600;
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 9px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+  cursor: default;
+}
+button.chip {
+  cursor: pointer;
+}
+button.chip:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+.refs {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: var(--fs-sm);
+}
+.refs a {
+  word-break: break-all;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: none;
+  color: var(--text-2);
+  text-align: left;
+  cursor: pointer;
+}
+.row:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.rowMain {
+  flex: 1;
+  min-width: 0;
+}
+.rowTitle {
+  color: var(--text);
+  font-size: var(--fs-md);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rowSub {
+  font-size: var(--fs-sm);
+  color: var(--text-3);
+}
+
+.sub {
+  margin-bottom: 6px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text-3);
+}
+.tbars {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.tbar {
+  display: grid;
+  grid-template-columns: 118px 1fr 26px;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fs-xs);
+}
+.tbarLabel {
+  color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tbarTrack {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+.tbarTrack span {
+  display: block;
+  height: 100%;
+  border-radius: 0 4px 4px 0;
+  background: var(--accent);
+}
+.tbarVal {
+  text-align: right;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.tbarVal[data-zero="true"] {
+  color: var(--text-3);
+}

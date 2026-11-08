@@ -1,0 +1,219 @@
+# Phishing-kit signature database. Markers are matched against captured HTML, final URL, script hosts,
+# form field names and page titles. Each marker has a weight; a kit is assigned when the weighted score
+# reaches `threshold`. Signatures are distilled from public vendor reporting (references listed per kit);
+# they are heuristics, not ground truth. Credit: the referenced vendors' public write-ups.
+kits:
+  - slug: tycoon-2fa
+    name: Tycoon 2FA
+    family: AiTM PhaaS
+    description: "Adversary-in-the-middle phishing-as-a-service targeting Microsoft 365 / Gmail; Cloudflare Turnstile gate, obfuscated JS, \"Opera Mini\" style resource names in later versions."
+    threshold: 3.0
+    references:
+      - https://blog.sekoia.io/tycoon-2fa-an-in-depth-analysis-of-the-latest-version-of-the-aitm-phishing-kit/
+      - https://www.proofpoint.com/us/blog/threat-insight/tycoon-2fa-phishing-kit
+    markers:
+      - {type: html, pattern: 'challenges\.cloudflare\.com/turnstile', weight: 1.5, label: Cloudflare Turnstile gate}
+      - {type: html, pattern: 'Verifying you are human|Checking your browser', weight: 0.5, label: anti-bot interstitial text}
+      - {type: html, pattern: 'login\.microsoftonline\.com|officeapps\.live\.com', weight: 1.0, label: Microsoft login lookalike resources}
+      - {type: html, pattern: 'atob\(|String\.fromCharCode\(', weight: 0.5, label: JS obfuscation}
+      - {type: url_path, pattern: '/[A-Za-z0-9]{24,}/?$|\?[a-z]=[A-Za-z0-9+/=]{30,}', weight: 1.0, label: base64 victim-email token in URL}
+      - {type: html, pattern: 'myaccount\.|Sign in to your account', weight: 0.5, label: M365 sign-in copy}
+
+  - slug: evilproxy
+    name: EvilProxy
+    family: AiTM PhaaS
+    description: "Reverse-proxy PhaaS impersonating Microsoft, Google, Apple; multi-step redirect chains and bot-filtering before the proxy."
+    threshold: 3.0
+    references:
+      - https://www.resecurity.com/blog/article/evilproxy-phishing-as-a-service-with-mfa-bypass-emerged-in-dark-web
+      - https://www.proofpoint.com/us/blog/threat-insight/cloud-account-takeover-campaign-leveraging-evilproxy-targets-top-level-executives
+    markers:
+      - {type: html, pattern: 'recaptcha/api\.js|www\.google\.com/recaptcha', weight: 1.0, label: reCAPTCHA gate}
+      - {type: html, pattern: 'sso_reload=true|login\.srf', weight: 1.5, label: proxied Microsoft SSO parameters}
+      - {type: url_path, pattern: '/common/oauth2|/owa/|/login\.srf', weight: 1.0, label: proxied Microsoft paths}
+      - {type: html, pattern: 'Stay signed in\?|Pick an account', weight: 0.5, label: M365 flow copy}
+      - {type: html, pattern: 'canary|flowToken|ctx=', weight: 1.0, label: proxied M365 hidden fields}
+
+  - slug: 16shop
+    name: 16Shop
+    family: Commercial kit
+    description: "Indonesian commercial kit (Apple, Amazon, PayPal, Cash App) with license checks, anti-bot blocklists and multi-page data harvesting."
+    threshold: 3.0
+    references:
+      - https://www.zerofox.com/blog/16shop-phishing-kit/
+      - https://www.trendmicro.com/en_us/research/23/i/16shop-phishing-kit-dismantled.html
+    markers:
+      - {type: html, pattern: '\b16shop\b', weight: 3.0, label: kit name string}
+      - {type: html, pattern: 'Your Account Has Been Limited|account has been limited', weight: 1.0, label: limited-account lure}
+      - {type: url_path, pattern: '/(login|signin|verify|card|billing|upload)\.php', weight: 0.5, label: PHP multi-step pages}
+      - {type: form_field, pattern: '^(cardnumber|ccnum|cvv|exp|dob|ssn|mmn)$', weight: 1.0, label: full-identity harvesting fields}
+      - {type: html, pattern: 'devtools|disableDevtool|F12', weight: 0.5, label: devtools blocking}
+
+  - slug: nakedpages
+    name: NakedPages
+    family: PhaaS
+    description: "PhaaS with Microsoft/Okta/Google templates, Telegram/Discord exfil and generic \"verify your identity\" interstitials."
+    threshold: 3.0
+    references:
+      - https://www.cloudsek.com/blog/nakedpages-phishing-toolkit-is-now-available-on-cybercrime-forums
+    markers:
+      - {type: html, pattern: '\bnakedpages\b', weight: 3.0, label: kit name string}
+      - {type: html, pattern: 'api\.telegram\.org/bot[0-9]+:', weight: 1.5, label: Telegram bot exfil}
+      - {type: html, pattern: 'discord(app)?\.com/api/webhooks', weight: 1.5, label: Discord webhook exfil}
+      - {type: html, pattern: 'Verify your identity|verify it.s you', weight: 0.5, label: identity-verification copy}
+
+  - slug: greatness
+    name: Greatness
+    family: PhaaS
+    description: "Microsoft 365 PhaaS pre-filling the victim's email from the URL hash, blurred background document lures and SMTP/Telegram exfil."
+    threshold: 3.0
+    references:
+      - https://blog.talosintelligence.com/new-phishing-as-a-service-tool-greatness-already-seen-in-the-wild/
+    markers:
+      - {type: html, pattern: 'location\.hash|window\.location\.hash', weight: 1.0, label: email pre-filled from URL fragment}
+      - {type: html, pattern: 'filter:\s*blur\(|blur\(\d+px\)', weight: 1.0, label: blurred document background}
+      - {type: html, pattern: 'sharepoint|OneDrive|Excel Online|Review document', weight: 0.5, label: document-share lure}
+      - {type: html, pattern: 'login\.microsoftonline\.com', weight: 0.5, label: M365 resources}
+      - {type: url_path, pattern: '#[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+|#[A-Za-z0-9+/=]{20,}$', weight: 1.5, label: victim email in fragment}
+
+  - slug: caffeine
+    name: Caffeine
+    family: PhaaS
+    description: "Open-registration PhaaS mostly Microsoft 365; Russian/Chinese template options; anti-analysis and IP/geo blocking."
+    threshold: 3.0
+    references:
+      - https://www.mandiant.com/resources/blog/caffeine-phishing-service-platform
+    markers:
+      - {type: html, pattern: '\bcaffeine (store|panel)\b', weight: 3.0, label: kit name string}
+      - {type: html, pattern: 'Microsoft 365|Office 365', weight: 0.5, label: M365 copy}
+      - {type: html, pattern: 'ipapi\.co|ip-api\.com|ipinfo\.io', weight: 1.0, label: geo-blocking lookup}
+      - {type: html, pattern: 'contextmenu|oncontextmenu|keydown.*F12', weight: 1.0, label: anti-analysis key blocking}
+
+  - slug: robin-banks
+    name: Robin Banks
+    family: PhaaS
+    description: "PhaaS focused on US/UK banks and Citibank/Wells Fargo/Capital One with Adspect cloaking and captcha gates."
+    threshold: 3.0
+    references:
+      - https://www.ironnet.com/blog/robin-banks-might-be-robbing-your-bank
+    markers:
+      - {type: html, pattern: '\brobin ?banks\b', weight: 3.0, label: kit name string}
+      - {type: html, pattern: 'adspect|Adspect', weight: 2.0, label: Adspect cloaking}
+      - {type: brand, pattern: '^(Wells Fargo|Citi|Capital One|Chase|Bank of America)$', weight: 0.5, label: US bank targeting}
+      - {type: html, pattern: 'hcaptcha\.com|recaptcha', weight: 0.5, label: captcha gate}
+
+  - slug: w3ll-ov6
+    name: W3LL Panel / OV6
+    family: BEC PhaaS
+    description: "Microsoft 365 AiTM kit sold through the W3LL Store; victim identity passed via URL and heavy obfuscation; targets BEC."
+    threshold: 3.0
+    references:
+      - https://www.group-ib.com/blog/w3ll-phishing/
+    markers:
+      - {type: html, pattern: '\bw3ll\b|\bOV6 ?panel\b', weight: 3.0, label: kit name string}
+      - {type: html, pattern: 'eval\(function\(p,a,c,k,e,', weight: 1.5, label: packer obfuscation}
+      - {type: html, pattern: 'login\.microsoftonline\.com', weight: 0.5, label: M365 resources}
+      - {type: url_path, pattern: '\?(e|email|u|user|id)=[A-Za-z0-9+/=%]{16,}', weight: 1.0, label: encoded victim email parameter}
+
+  - slug: dadsec-phoenix
+    name: Dadsec / Phoenix (Storm-1575)
+    family: AiTM PhaaS
+    description: "Microsoft-tracked Storm-1575 AiTM platform (Dadsec, later Phoenix) impersonating Microsoft 365 with captcha gates and Telegram exfil."
+    threshold: 3.0
+    references:
+      - https://www.microsoft.com/en-us/security/blog/2023/12/12/new-paper-on-phishing-as-a-service-operations/
+    markers:
+      - {type: html, pattern: '\bdadsec\b|\bphoenix-kit\b', weight: 3.0, label: kit name string}
+      - {type: html, pattern: 'challenges\.cloudflare\.com/turnstile|hcaptcha\.com', weight: 1.0, label: captcha gate}
+      - {type: html, pattern: 'api\.telegram\.org/bot', weight: 1.0, label: Telegram exfil}
+      - {type: html, pattern: 'Microsoft|Outlook|Office', weight: 0.5, label: Microsoft brand copy}
+
+  - slug: mamba-2fa
+    name: Mamba 2FA
+    family: AiTM PhaaS
+    description: "Microsoft 365 AiTM kit with Socket.IO relay to the backend and dynamic branding pulled from the victim's tenant."
+    threshold: 3.0
+    references:
+      - https://blog.sekoia.io/mamba-2fa-a-new-contender-in-the-aitm-phishing-ecosystem/
+    markers:
+      - {type: html, pattern: 'socket\.io|/socket\.io/', weight: 2.0, label: Socket.IO relay to AiTM backend}
+      - {type: html, pattern: 'login\.microsoftonline\.com|aadcdn\.msftauth\.net', weight: 1.0, label: M365 resources}
+      - {type: url_path, pattern: '/[a-z0-9]{8,}/[a-z0-9]{8,}/?$', weight: 0.5, label: nested random paths}
+      - {type: html, pattern: 'Enter password|Verify your identity', weight: 0.5, label: M365 step copy}
+
+  - slug: sneaky-2fa
+    name: Sneaky 2FA
+    family: AiTM PhaaS
+    description: "Microsoft 365 AiTM kit (Sneaky Log) with blurred Microsoft screenshot backgrounds, Cloudflare Turnstile and anti-debug."
+    threshold: 3.0
+    references:
+      - https://blog.sekoia.io/sneaky-2fa-exposing-a-new-aitm-phishing-as-a-service/
+    markers:
+      - {type: html, pattern: '\bsneaky ?(log|2fa)\b', weight: 2.0, label: kit name string}
+      - {type: html, pattern: 'challenges\.cloudflare\.com/turnstile', weight: 1.0, label: Turnstile gate}
+      - {type: html, pattern: 'debugger;|devtools', weight: 1.0, label: anti-debug}
+      - {type: html, pattern: 'filter:\s*blur\(', weight: 1.0, label: blurred background}
+
+  - slug: rockstar-2fa
+    name: Rockstar 2FA / FlowerStorm
+    family: AiTM PhaaS
+    description: "Microsoft 365 AiTM PhaaS (Dadsec lineage) with car-themed admin panels, Cloudflare Turnstile and FUD redirect links."
+    threshold: 3.0
+    references:
+      - https://blog.talosintelligence.com/rockstar-2fa/
+    markers:
+      - {type: html, pattern: '\brockstar ?2fa\b', weight: 2.0, label: kit name string}
+      - {type: html, pattern: 'challenges\.cloudflare\.com/turnstile', weight: 1.0, label: Turnstile gate}
+      - {type: html, pattern: 'login\.microsoftonline\.com', weight: 0.5, label: M365 resources}
+      - {type: url_path, pattern: '/\?[a-z]{1,3}=[A-Za-z0-9+/=%]{30,}', weight: 1.0, label: encoded state in query}
+
+  - slug: logokit
+    name: LogoKit
+    family: Dynamic-brand kit
+    description: "Lightweight JS kit that pulls the victim's company logo from Clearbit/Google favicon services based on the email in the URL."
+    threshold: 2.5
+    references:
+      - https://www.riskiq.com/blog/external-threat-management/logokit-phishing/
+    markers:
+      - {type: html, pattern: 'logo\.clearbit\.com', weight: 2.0, label: Clearbit logo API}
+      - {type: html, pattern: 'google\.com/s2/favicons|s2/favicons', weight: 1.5, label: Google favicon service}
+      - {type: html, pattern: 'location\.hash|split\("@"\)', weight: 1.0, label: domain from victim email}
+      - {type: html, pattern: 'firebasestorage|firebaseio\.com', weight: 0.5, label: Firebase hosting}
+
+  - slug: generic-php-mailer
+    name: Generic PHP mailer kit
+    family: Commodity kit
+    description: "Classic copy-paste PHP kit: HTML clone of a brand login, POST to a local .php handler, results mailed with mail() to a hard-coded address or posted to Telegram."
+    threshold: 2.5
+    references:
+      - https://www.phishlabs.com/blog/phishing-kits-the-heart-of-a-phishing-campaign
+    markers:
+      - {type: form_action, pattern: '\.php($|\?)', weight: 1.5, label: form POST to local PHP handler}
+      - {type: html, pattern: 'api\.telegram\.org/bot', weight: 1.0, label: Telegram exfil}
+      - {type: html, pattern: 'mailto:|@gmail\.com|@yandex\.|@protonmail\.', weight: 0.5, label: hard-coded mailbox}
+      - {type: url_path, pattern: '/(login|signin|verify|update|secure|account)[a-z0-9_-]*\.php', weight: 1.0, label: PHP lure page}
+      - {type: form_field, pattern: '^(password|passwd|pass|pwd|login|user|email)$', weight: 0.5, label: credential fields}
+
+  - slug: wallet-drainer-seed
+    name: Crypto seed-phrase kit
+    family: Crypto kit
+    description: "Wallet \"sync/validate\" pages (Coinbase, Binance, MetaMask lookalikes) harvesting 12/24-word recovery phrases."
+    threshold: 2.5
+    references:
+      - https://www.chainalysis.com/blog/approval-phishing-scams/
+    markers:
+      - {type: html, pattern: 'recovery phrase|seed phrase|secret phrase|12.word|24.word|mnemonic', weight: 2.0, label: seed-phrase harvesting copy}
+      - {type: html, pattern: 'wallet|MetaMask|Trust Wallet|Ledger|Trezor', weight: 0.5, label: wallet brand copy}
+      - {type: form_field, pattern: '^(phrase|seed|mnemonic|word\d+|keystore|privatekey)$', weight: 1.5, label: phrase input fields}
+
+  - slug: webmail-harvester
+    name: Generic webmail / document-share harvester
+    family: Commodity kit
+    description: "'Shared document' / 'voicemail' / 'mailbox quota' lures with a provider picker (Office 365, Gmail, Yahoo, AOL, Other) posting to a PHP or form-service endpoint."
+    threshold: 2.5
+    references:
+      - https://www.proofpoint.com/us/blog/threat-insight/phishing-kit-landscape
+    markers:
+      - {type: html, pattern: 'Office 365.*Gmail.*(Yahoo|AOL|Other)|Sign in with your email provider', weight: 2.0, label: multi-provider picker}
+      - {type: html, pattern: 'formspree\.io|getform\.io|formsubmit\.co|emailjs\.com|usebasin\.com', weight: 1.5, label: form-service exfil}
+      - {type: html, pattern: 'voicemail|Voice message|shared a (file|document)|mailbox (quota|storage)', weight: 1.0, label: document / voicemail lure}
