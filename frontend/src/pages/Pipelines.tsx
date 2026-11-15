@@ -13,7 +13,7 @@ import { fmtAgo, fmtDateTime, fmtDuration, fmtInt } from '../lib/format'
 import type { PipelineInfo, RunOut } from '../lib/types'
 
 const META: Record<string, { title: string; tag: string; icon: typeof Fish; desc: string }> = {
-  phishing: { title: 'Phishing campaign clustering', tag: 'P4', icon: Fish, desc: 'urlscan.io search + OpenPhish → direct page capture → DOM and marker features → structural + DBSCAN clustering → kit fingerprinting → Sigma / YARA / IOC detections.' },
+  phishing: { title: 'Phishing campaign clustering', tag: 'P4', icon: Fish, desc: 'urlscan.io + OpenPhish + PhishTank + WhoisDS new domains → direct page capture → DOM and marker features → structural + DBSCAN clustering → kit fingerprinting → Sigma / YARA / IOC detections.' },
   landscape: { title: 'Sector threat landscape', tag: 'P6', icon: Radar, desc: 'ransomware.live victims + RansomLook cross-check → sector, region and size classification → actor trends → IAB mining from public reporting → monthly CISO briefing.' },
 }
 

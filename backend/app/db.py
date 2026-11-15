@@ -37,6 +37,31 @@ def init_db() -> None:
     from . import models  # noqa: F401  (register tables)
 
     SQLModel.metadata.create_all(get_engine())
+    _add_missing_columns()
+
+
+def _add_missing_columns() -> None:
+    """create_all() never alters existing tables. Add columns introduced after a database was created
+    (e.g. phish_samples.threat_score), so an existing data/ctiops.db keeps working without a wipe."""
+    from sqlalchemy import inspect, text
+
+    engine = get_engine()
+    insp = inspect(engine)
+    with engine.begin() as conn:
+        for table in SQLModel.metadata.sorted_tables:
+            if not insp.has_table(table.name):
+                continue
+            have = {c["name"] for c in insp.get_columns(table.name)}
+            for column in table.columns:
+                if column.name in have:
+                    continue
+                ddl_type = column.type.compile(dialect=engine.dialect)
+                default = column.default.arg if column.default is not None and not callable(column.default.arg) else None
+                clause = f" DEFAULT {default!r}" if isinstance(default, int | float | str) and not isinstance(default, bool) else ""
+                conn.execute(text(f'ALTER TABLE "{table.name}" ADD COLUMN "{column.name}" {ddl_type}{clause}'))
+                if column.index:
+                    conn.execute(text(f'CREATE INDEX IF NOT EXISTS "ix_{table.name}_{column.name}" '
+                                      f'ON "{table.name}" ("{column.name}")'))
 
 
 def get_session() -> Iterator[Session]:

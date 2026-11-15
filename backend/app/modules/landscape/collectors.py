@@ -76,13 +76,54 @@ class SourceStatus:
 
 # --------------------------------------------------------------------------- ransomware.live
 
+RL_BULK = "https://data.ransomware.live/victims.json"
+_bulk_by_month: dict[str, list[dict[str, Any]]] | None = None
+
+
+def _bulk_victims(client: CachedClient) -> dict[str, list[dict[str, Any]]] | None:
+    """Fallback: ransomware.live's public bulk dataset, mapped to the API v2 victim shape.
+
+    The v2 REST endpoints (api.ransomware.live/v2/...) started returning 404 in Nov 2026;
+    the bulk dump carries the same victims with different field names.
+    """
+    global _bulk_by_month
+    if _bulk_by_month is not None:
+        return _bulk_by_month
+    data = client.get_json(RL_BULK, ttl=6 * 3600)
+    if not isinstance(data, list):
+        return None
+    out: dict[str, list[dict[str, Any]]] = {}
+    seen_ids: set[str] = set()
+    for r in data:
+        disc = r.get("discovered") or r.get("published")
+        ym = month_key(parse_dt(r.get("published") or disc))
+        if not ym:
+            continue
+        rec = {
+            "victim": r.get("post_title"), "group": r.get("group_name"), "discovered": disc,
+            "attackdate": r.get("published"), "country": r.get("country"),
+            "activity": r.get("activity") if r.get("activity") not in ("", "Not Found") else None,
+            "description": r.get("description"), "domain": r.get("website"), "url": r.get("post_url"),
+        }
+        # the dump repeats some post URLs (re-posts); the DB keys victims on source_id, so keep the first
+        sid = victim_source_id(rec)
+        if sid in seen_ids:
+            continue
+        seen_ids.add(sid)
+        out.setdefault(ym, []).append(rec)
+    _bulk_by_month = out
+    log.info("ransomware.live bulk fallback: %d victims across %d months", len(data), len(out))
+    return out
+
+
 def fetch_victims_month(client: CachedClient, ym: str, fresh: bool = False) -> list[dict[str, Any]] | None:
     y, m = ym.split("-")
     # current month changes constantly -> short TTL
     ttl = 900 if fresh else None
     data = client.get_json(f"{RL_BASE}/victims/{y}/{int(m)}", ttl=ttl)
     if data is None:
-        return None
+        bulk = _bulk_victims(client)
+        return None if bulk is None else bulk.get(ym, [])
     return data if isinstance(data, list) else []
 
 

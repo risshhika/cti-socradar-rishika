@@ -22,6 +22,15 @@ class Settings(BaseSettings):
     database_url: str | None = None
     urlscan_api_key: str | None = None
     anthropic_api_key: str | None = None
+    x_bearer_token: str | None = None  # X API v2 app bearer token (recent search), CTIOPS_X_BEARER_TOKEN
+    # Wikidata and SEC EDGAR refuse automated clients without a contact User-Agent, e.g.
+    # "ctiops-research/0.1 (you@example.org)". Those two lookups are skipped until it is set; GLEIF needs nothing.
+    registry_user_agent: str | None = None
+    zoominfo_username: str | None = None  # optional ZoomInfo Enrich + Search API (enterprise); free registries otherwise
+    zoominfo_password: str | None = None
+    # Shodan API key (CTIOPS_SHODAN_API_KEY): passive read of Shodan's host database to see which exposed
+    # endpoint runs a named product (e.g. Pulse Secure) for victim identification. We never connect to a host.
+    shodan_api_key: str | None = None
     anthropic_model: str = "claude-sonnet-5-5"
     http_timeout: float = 20.0
     cache_ttl_seconds: int = 6 * 3600
@@ -55,9 +64,21 @@ def get_settings() -> Settings:
 class PhishingScope(BaseModel):
     sector: str = "Financial services & payments"
     brands: list[str] = Field(default_factory=lambda: ["PayPal", "Chase", "HSBC"])
-    days_back: int = 14
+    # One ingestion window for every source (WhoisDS NRD, urlscan, OpenPhish, PhishTank) and the retention
+    # limit: data older than this is pruned at the start of each run.
+    days_back: int = 7
     max_samples: int = 400
     urlscan_queries_per_brand: int = 2
+    report_reporter: str = ""  # name on the cover of client reports
+    # typosquat leads from WhoisDS newly-registered domains, see modules/phishing/typosquat.py
+    max_leads_promoted: int = 80  # strongest leads fetched as samples, on top of max_samples
+    brand_fragments: dict[str, list[str]] = Field(default_factory=dict)   # PayPal: [pay, pal] -> pay*pal*
+    brand_domains: dict[str, list[str]] = Field(default_factory=dict)     # official domains, never flagged
+    brand_exclusions: dict[str, list[str]] = Field(default_factory=dict)  # ordinary words containing the brand
+
+    @property
+    def window_days(self) -> int:
+        return max(1, self.days_back)
 
 
 class LandscapeScope(BaseModel):
@@ -65,6 +86,10 @@ class LandscapeScope(BaseModel):
     region: str = "Europe"
     months: int = 6
     iab_feeds: list[str] = Field(default_factory=list)
+    # X (Twitter) IAB monitor: recent-search queries (7-day window on the X API), run for these sectors only
+    x_queries: list[dict[str, str]] = Field(default_factory=list)  # {label, query}
+    x_sectors: list[str] = Field(default_factory=lambda: ["Financial Services"])
+    x_max_pages: int = 2  # 100 posts per page, per query, per run (X API read quota)
 
 
 class Scope(BaseModel):

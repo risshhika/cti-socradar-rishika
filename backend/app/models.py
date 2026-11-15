@@ -123,6 +123,41 @@ class PhishSample(SQLModel, table=True):
     campaign_id: int | None = Field(default=None, foreign_key="phish_campaigns.id", index=True)
     kit_id: int | None = Field(default=None, foreign_key="phish_kits.id", index=True)
     kit_confidence: float = 0.0
+    # threat rank (modules/phishing/rank.py): typosquat (type A) | content (type B) | unattributed
+    detection_type: str | None = Field(default=None, index=True)
+    threat_score: int = Field(default=0, index=True)
+    threat_tier: str | None = Field(default=None, index=True)  # critical | high | medium | low
+    squat: dict[str, Any] | None = Field(default=None, sa_column=Column(JSON))  # hostname match evidence
+    rank_factors: list[dict[str, Any]] = Field(default_factory=list, sa_column=Column(JSON))
+    # de-duplication (modules/phishing/dedupe.py): one sample per page, every reporting source kept
+    dedup_key: str | None = Field(default=None, index=True)  # canonical URL
+    sources: list[str] = Field(default_factory=list, sa_column=Column(JSON))  # urlscan | openphish | nrd | ct
+    duplicate_urls: list[str] = Field(default_factory=list, sa_column=Column(JSON))  # merged alternate URLs
+    duplicate_count: int = 0  # how many other reports were merged into this sample
+    created_at: datetime = Field(default_factory=utcnow)
+
+
+class DomainLead(SQLModel, table=True):
+    """A brand-typosquat hostname seen in newly-registered-domain lists or CT logs, before (or without)
+    any phishing report. Strong leads are promoted to PhishSample and fetched."""
+    __tablename__ = "domain_leads"
+
+    id: int | None = Field(default=None, primary_key=True)
+    domain: str = Field(index=True, unique=True)
+    brand: str = Field(index=True)
+    match_kind: str = Field(index=True)  # embed | homoglyph | fragment | typo
+    match_score: float = 0.0
+    evidence: str | None = None
+    lure_words: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    sources: list[str] = Field(default_factory=list, sa_column=Column(JSON))  # nrd | ct | urlscan | openphish
+    first_seen: datetime | None = Field(default=None, index=True)
+    last_seen: datetime | None = None
+    meta: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))  # registered date, cert issuer/id
+    status: str = Field(default="new", index=True)  # new | promoted | live | offline | blocked
+    sample_id: int | None = Field(default=None, foreign_key="phish_samples.id", index=True)
+    threat_score: int = Field(default=0, index=True)
+    threat_tier: str | None = Field(default=None, index=True)
+    rank_factors: list[dict[str, Any]] = Field(default_factory=list, sa_column=Column(JSON))
     created_at: datetime = Field(default_factory=utcnow)
 
 
@@ -259,3 +294,79 @@ class Briefing(SQLModel, table=True):
     generator: str = "template"  # template | llm
     status: str = "draft"  # draft | final
     generated_at: datetime = Field(default_factory=utcnow)
+
+
+# --------------------------------------------------------------------------- P6: X (Twitter) IAB monitor
+
+class XPost(SQLModel, table=True):
+    """A public X post matched by one of the IAB monitor queries, with preserved evidence."""
+
+    __tablename__ = "x_posts"
+
+    id: int | None = Field(default=None, primary_key=True)
+    tweet_id: str = Field(index=True, unique=True)
+    url: str
+    author_id: str | None = None
+    author_handle: str | None = Field(default=None, index=True)
+    author_name: str | None = None
+    created_at: datetime | None = Field(default=None, index=True)
+    lang: str | None = None
+    text: str = Field(sa_column=Column(Text))
+    queries: list[str] = Field(default_factory=list, sa_column=Column(JSON))  # labels of every query that matched
+    links: list[str] = Field(default_factory=list, sa_column=Column(JSON))  # expanded URLs in the post
+    media: list[dict[str, Any]] = Field(default_factory=list, sa_column=Column(JSON))  # key, type, url, path, sha256, alt
+    metrics: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    # evidence: raw API record + rendered post card, both hashed at capture time
+    raw_path: str | None = None
+    raw_sha256: str | None = None
+    card_path: str | None = None
+    card_sha256: str | None = None
+    shot_path: str | None = None  # screenshot of the post as shown on x.com (browser capture)
+    shot_sha256: str | None = None
+    capture_method: str = "api"  # api | browser
+    captured_at: datetime = Field(default_factory=utcnow)
+    # extraction
+    financial_terms: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    fin_subtype: str | None = Field(default=None, index=True)  # Bank | Credit union | Insurance | Payments | ...
+    access_types: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    price_usd_min: float | None = None
+    price_usd_max: float | None = None
+    claimed_revenue_usd: float | None = None
+    countries: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    forums: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    tech: list[str] = Field(default_factory=list, sa_column=Column(JSON))  # named products (Pulse Secure, Citrix, ...)
+    host_count: int | None = None  # "~10,000+ hosts" claimed in the listing
+    victim_candidates: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    relevance: float = 0.0
+    # victim: auto-picked candidate or analyst-confirmed name, linked to company data
+    victim_name: str | None = Field(default=None, index=True)
+    victim_confirmed: bool = False
+    org_id: int | None = Field(default=None, foreign_key="organizations.id", index=True)
+    status: str = Field(default="new", index=True)  # new | relevant | noise
+
+
+class Organization(SQLModel, table=True):
+    """Company firmographics (revenue, employees, industry) from public registries, cached per name."""
+
+    __tablename__ = "organizations"
+
+    id: int | None = Field(default=None, primary_key=True)
+    name_key: str = Field(index=True, unique=True)  # classify.normalize_name of the queried name
+    query_name: str
+    legal_name: str | None = None
+    website: str | None = None
+    country: str | None = None
+    industry: str | None = None
+    industry_codes: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    fin_subtype: str | None = Field(default=None, index=True)
+    revenue_usd: float | None = None
+    revenue_year: int | None = None
+    revenue_band: str | None = Field(default=None, index=True)
+    employees: int | None = None
+    employees_year: int | None = None
+    employee_band: str | None = Field(default=None, index=True)
+    identifiers: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))  # wikidata, cik, lei, ticker
+    sources: list[dict[str, Any]] = Field(default_factory=list, sa_column=Column(JSON))  # {source, url, fields, fetched}
+    match_score: float = 0.0
+    status: str = "ok"  # ok | not_found | ambiguous
+    fetched_at: datetime = Field(default_factory=utcnow)

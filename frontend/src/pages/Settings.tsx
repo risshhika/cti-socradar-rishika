@@ -50,11 +50,11 @@ export default function Settings() {
       {save.error && <div style={{ marginBottom: 16 }}><ErrorState error={save.error} /></div>}
       <Grid>
         <Span n={6}>
-          <Card title="P4 · Phishing campaign scope" subtitle="Sector, watched brands and window used for urlscan.io searches and OpenPhish filtering" actions={<RunPipelineButton name="phishing" label="Run P4" size="sm" variant="secondary" />}>
+          <Card title="P4 · Phishing campaign scope" subtitle="Sector, watched brands and the window applied to WhoisDS, urlscan.io, OpenPhish and PhishTank" actions={<RunPipelineButton name="phishing" label="Run P4" size="sm" variant="secondary" />}>
             <Field label="Sector"><input value={p.sector} onChange={(e) => setP({ sector: e.target.value })} /></Field>
             <Field label="Watched brands" hint="Press Enter after each brand. Brands drive urlscan.io searches and brand detection."><TagInput values={p.brands} onChange={(brands) => setP({ brands })} placeholder="Add a brand…" /></Field>
             <div className={f.grid3}>
-              <Field label="Days back" hint="window"><input type="number" min={1} value={p.days_back} onChange={(e) => setP({ days_back: Number(e.target.value) })} /></Field>
+              <Field label="Window (days)" hint="all sources + retention"><input type="number" min={1} value={p.days_back} onChange={(e) => setP({ days_back: Number(e.target.value) })} /></Field>
               <Field label="Max samples" hint="per run"><input type="number" min={10} value={p.max_samples} onChange={(e) => setP({ max_samples: Number(e.target.value) })} /></Field>
               <Field label="Queries per brand" hint="30/min keyless"><input type="number" min={1} value={p.urlscan_queries_per_brand} onChange={(e) => setP({ urlscan_queries_per_brand: Number(e.target.value) })} /></Field>
             </div>

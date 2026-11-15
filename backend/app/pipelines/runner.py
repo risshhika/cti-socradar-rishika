@@ -63,10 +63,12 @@ def _load_modules() -> None:
     if _REGISTRY:
         return
     from ..modules.landscape import pipeline as landscape  # noqa: F401
+    from ..modules.landscape import x_pipeline  # noqa: F401
     from ..modules.phishing import pipeline as phishing  # noqa: F401
 
     register("phishing", phishing.run)
     register("landscape", landscape.run)
+    register("x_iab", x_pipeline.run)
 
 
 def is_running(name: str) -> bool:
@@ -135,6 +137,17 @@ def _execute(name: str, run_id: int, params: dict[str, Any]) -> None:
 def _pid_alive(pid: object) -> bool:
     if not isinstance(pid, int) or pid <= 0:
         return False
+    if os.name == "nt":
+        # os.kill(pid, 0) on Windows calls TerminateProcess -- it would kill the run it is probing.
+        import ctypes
+        k32 = ctypes.windll.kernel32
+        h = k32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+        if not h:
+            return ctypes.get_last_error() == 5 or k32.GetLastError() == 5  # access denied -> exists
+        code = ctypes.c_ulong()
+        ok = k32.GetExitCodeProcess(h, ctypes.byref(code))
+        k32.CloseHandle(h)
+        return bool(ok) and code.value == 259  # STILL_ACTIVE
     try:
         os.kill(pid, 0)
     except ProcessLookupError:

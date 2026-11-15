@@ -3,7 +3,7 @@ export interface Page { page: number; size: number; total: number }
 export interface KeyCount { key: string; count: number; share?: number | null }
 export interface TimePoint { period: string; value: number; secondary?: number | null }
 
-export interface PhishingScope { sector: string; brands: string[]; days_back: number; max_samples: number; urlscan_queries_per_brand: number }
+export interface PhishingScope { sector: string; brands: string[]; days_back: number; max_samples: number; urlscan_queries_per_brand: number; [k: string]: unknown }
 export interface LandscapeScope { sector: string; region: string; months: number; iab_feeds: string[] }
 export interface Scope { phishing: PhishingScope; landscape: LandscapeScope }
 
@@ -52,6 +52,56 @@ export interface SampleOut {
   html_sha256: string | null; html_size: number | null; screenshot_url: string | null; struct_hash: string | null
   features: Record<string, any>; campaign_id: number | null; campaign_name: string | null
   kit_id: number | null; kit_name: string | null; kit_confidence: number; review_verdict: Verdict | null
+  detection_type: 'typosquat' | 'content' | 'unattributed' | null; threat_score: number; threat_tier: ThreatTier | null
+  squat: SquatMatch | null; rank_factors: RankFactor[]
+  dedup_key: string | null; sources: string[]; duplicate_urls: string[]; duplicate_count: number
+}
+export type ThreatTier = 'critical' | 'high' | 'medium' | 'low'
+export interface SquatMatch { brand: string; kind: 'embed' | 'homoglyph' | 'fragment' | 'typo'; score: number; label: string; evidence: string; lure_words: string[] }
+export interface RankFactor { factor: string; points: number; detail: string }
+export interface LeadOut {
+  id: number; domain: string; brand: string; match_kind: SquatMatch['kind']; match_score: number; evidence: string | null
+  lure_words: string[]; sources: string[]; first_seen: string | null; last_seen: string | null; meta: Record<string, any>
+  status: 'new' | 'promoted' | 'live' | 'offline' | 'blocked' | string; sample_id: number | null
+  threat_score: number; threat_tier: ThreatTier | null; rank_factors: RankFactor[]
+}
+export interface LeadList { items: LeadOut[]; page: Page }
+export interface ReportBrand { brand: string; samples: number; live: number; in_scope: boolean }
+export interface BrandReport {
+  brand: string; generated_at: string; window_days: number; sector: string
+  executive_summary: string; impact_one_line: string; method_note: string
+  numbers: {
+    window_days: number; pages: number; share_of_all: number; live: number; blocked: number; offline: number
+    critical: number; high: number; medium: number; low: number; typosquat_hosts: number; content_only: number
+    campaigns: number; active_campaigns: number; multi_page_campaigns: number; kits: number; named_kits: number
+    typosquat_leads: number; new_domain_leads: number; detections: number; duplicates_merged: number
+    sources: Record<string, number>; daily: { day: string; pages: number }[]
+  }
+  targeting: {
+    rank_among_brands: number | null; detection_types: Record<string, number>; squat_kinds: Record<string, number>
+    lure_words: { word: string; count: number }[]; hosting_platforms: { platform: string; pages: number }[]; dedicated_domains: number
+    title_themes: string[]; credential_surface: { key: string; asset: string; impact: string; pages: number; share: number }[]
+    kits: { name: string; source: string; pages: number }[]
+  }
+  use_case: null | {
+    sample_id: number; screenshot: string; caption: string; threat_score: number; threat_tier: ThreatTier | null
+    verified_live_at: string | null; live_within_48h: boolean; first_seen: string | null; country: string | null
+    hosting: string | null; platform: string | null; assets_requested: string[]
+  }
+  fingerprint: null | {
+    kit: null | { name: string; family: string | null; source: string; confidence: number; description: string; references: string[]; pages: number; campaigns: number }
+    matched_markers: string[]
+    campaign: null | { name: string; pages: number; domains: number; ips: number; cohesion: number; method: string; status: string; shared_markers: string[]; exfil_endpoints: string[] }
+    page: { dom_simhash: string | null; favicon_hash: string | null; html_sha256: string | null; input_names: string[]; script_hosts: string[]; obfuscation: string[]; antibot: string[]; exfil: string[]; image_names: string[] }
+  }
+  urlscan_queries: { label: string; query: string; why: string; link: string; results_now?: number | null; error?: string }[]
+  geography: { countries: { country: string; pages: number; new_recently: boolean }[]; new_countries: string[]; asns: { asn: string; pages: number }[]; tlds: { tld: string; pages: number }[] }
+  user_impact: { asset: string; consequence: string; evidence: string }[]
+  defense: { organisation: string[]; customers: string[] }
+}
+export interface LeadStats {
+  leads: number; by_brand: KeyCount[]; by_kind: KeyCount[]; by_source: KeyCount[]; by_tier: KeyCount[]; by_status: KeyCount[]
+  detection_types: KeyCount[]; sample_tiers: KeyCount[]; timeline: TimePoint[]
 }
 export interface DetectionOut {
   id: number; campaign_id: number | null; kit_id: number | null; type: string; target: string; title: string
@@ -64,6 +114,7 @@ export interface PhishingStats {
   samples: number; fetched_ok: number; campaigns: number; active_campaigns: number; kits: number; detections: number
   brands: KeyCount[]; tlds: KeyCount[]; asns: KeyCount[]; countries: KeyCount[]; sources: KeyCount[]; fetch_status: KeyCount[]
   kit_distribution: KeyCount[]; timeline: TimePoint[]; campaign_sizes: KeyCount[]; last_run: RunOut | null
+  duplicates_merged: number
 }
 
 // ---- P6

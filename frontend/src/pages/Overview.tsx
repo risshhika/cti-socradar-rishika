@@ -66,7 +66,7 @@ export default function Overview() {
 
       <SectionLabel>P4 · Phishing campaigns · last 7 days</SectionLabel>
       <KpiRow>
-        <KpiTile loading={!p} kpi={p ? { label: 'Phishing pages', value: p.kpis.samples.cur, prev: p.kpis.samples.prev, window: '7 days', spark: p.daily_total, sparkLabels: p.days, source: 'urlscan.io · OpenPhish', to: '/phishing/samples' } : undefined} />
+        <KpiTile loading={!p} kpi={p ? { label: 'Phishing pages', value: p.kpis.samples.cur, prev: p.kpis.samples.prev, window: '7 days', spark: p.daily_total, sparkLabels: p.days, source: 'urlscan.io · OpenPhish · PhishTank · WhoisDS', to: '/phishing/samples' } : undefined} />
         <KpiTile loading={!p} kpi={p ? { label: 'New campaigns', value: p.kpis.campaigns_new.cur, prev: p.kpis.campaigns_new.prev, window: '7 days', spark: p.daily_new_campaigns, sparkLabels: p.days, source: 'clustering', note: `${o?.phishing.campaigns_active ?? '…'} active`, to: '/phishing/campaigns' } : undefined} />
         <KpiTile loading={!p} kpi={p ? { label: 'Kits attributed', value: p.kit_profiles.length, window: 'window', spark: p.daily_clustered, sparkLabels: p.days, source: 'kits.yaml', note: `${p.kit_profiles.filter((k) => k.source === 'signature').length} named · ${p.kit_profiles.filter((k) => k.source !== 'signature').length} inferred`, to: '/phishing/kits', upIsBad: null } : undefined} />
         <KpiTile loading={!p} kpi={p ? { label: 'Detections shipped', value: p.kpis.detections.cur, prev: p.kpis.detections.prev, window: '7 days', spark: p.daily_detections ?? [], sparkLabels: p.days, source: 'Sigma · YARA · IOC', note: `${fmtInt(o?.phishing.detections)} total`, to: '/phishing/detections', upIsBad: null } : undefined} />

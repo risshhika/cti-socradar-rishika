@@ -161,6 +161,51 @@ class SampleOut(BaseModel):
     kit_name: str | None = None
     kit_confidence: float
     review_verdict: str | None = None
+    detection_type: str | None = None
+    threat_score: int = 0
+    threat_tier: str | None = None
+    squat: dict[str, Any] | None = None
+    rank_factors: list[dict[str, Any]] = Field(default_factory=list)
+    dedup_key: str | None = None
+    sources: list[str] = Field(default_factory=list)
+    duplicate_urls: list[str] = Field(default_factory=list)
+    duplicate_count: int = 0
+
+
+class LeadOut(BaseModel):
+    id: int
+    domain: str
+    brand: str
+    match_kind: str
+    match_score: float
+    evidence: str | None
+    lure_words: list[str]
+    sources: list[str]
+    first_seen: datetime | None
+    last_seen: datetime | None
+    meta: dict[str, Any]
+    status: str
+    sample_id: int | None
+    threat_score: int
+    threat_tier: str | None
+    rank_factors: list[dict[str, Any]]
+
+
+class LeadList(BaseModel):
+    items: list[LeadOut]
+    page: Page
+
+
+class LeadStats(BaseModel):
+    leads: int
+    by_brand: list[KeyCount]
+    by_kind: list[KeyCount]
+    by_source: list[KeyCount]
+    by_tier: list[KeyCount]
+    by_status: list[KeyCount]
+    detection_types: list[KeyCount]  # across all samples: typosquat | content | unattributed
+    sample_tiers: list[KeyCount]
+    timeline: list[TimePoint]
 
 
 class DetectionOut(BaseModel):
@@ -214,6 +259,7 @@ class PhishingStats(BaseModel):
     timeline: list[TimePoint]  # samples per day (secondary = clustered)
     campaign_sizes: list[KeyCount]  # buckets: 1, 2-4, 5-9, 10+
     last_run: RunOut | None
+    duplicates_merged: int = 0  # reports folded into existing samples (cross-source, URL variants, same page)
 
 
 # --------------------------------------------------------------------------- P6

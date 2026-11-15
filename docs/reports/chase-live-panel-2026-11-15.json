@@ -1,0 +1,92 @@
+{
+  "title": "Chase live-panel phishing operation rotating DuckDNS hostnames",
+  "subtitle": "One operator, one dedicated server, real-time capture of passwords and one-time codes",
+  "reporter": "Rishika Desai",
+  "date": "15 November 2026",
+  "classification": "TLP:CLEAR",
+  "report_id": "CTI-P4-2026-11-001",
+  "executive_summary": [
+    "A single operator is running a Chase phishing kit that captures usernames, passwords and SMS one-time codes in real time, and can request a second code on demand. The operator serves byte-identical pages from one dedicated server and moves to a new DuckDNS hostname each day. Because the kit relays codes while the victim waits, SMS-based verification does not protect a victim who completes the flow.",
+    "We recommend blocking the server address and the hostname pattern at web gateways, filing abuse reports with DuckDNS and the hosting provider, and hunting for the kit's file names ([[login[.]php]], [[wait[.]php]]) in proxy logs. Details and indicators follow."
+  ],
+  "at_a_glance": [
+    ["Targeted brand", "JPMorgan Chase (Chase Online banking customers, US)"],
+    ["Observed hosts", "chaseonline-secure[.]duckdns[.]org (13 Nov 2026, 21:30 UTC)\nchase-verify-secure[.]duckdns[.]org (14 Nov 2026, 17:37 UTC)"],
+    ["Infrastructure", "[[104.194.139[.]2]], RouterHosting (US)"],
+    ["Data stolen", "Username, password, first SMS one-time code, second code on operator request"],
+    ["Operator linkage", "High confidence: same dedicated IP, identical page, same server stack, sequential daily hostnames"],
+    ["Status", "Active in the 7-day window ending 15 Nov 2026"]
+  ],
+  "linkage": {
+    "intro": "The two hosts were found by pivoting from a separate Chase lookalike on the page title \"Chase Online\", then on the server address. Three observations link them:",
+    "rows": [
+      ["Dedicated server", "Both hosts resolve to 104.194.139[.]2. No other sites were seen on that address, so it is not shared hosting.", "Strong"],
+      ["Identical page", "Same HTML SHA-256 (7dd35126...e20369d) on both hosts.", "Strong"],
+      ["Naming and timing", "Brand-plus-trust-word hostnames on the same free dynamic DNS service", "Supporting"]
+    ]
+  },
+  "kit": {
+    "intro": "The page imitates the Chase Online sign-in. Analysis of the page code shows a four-stage flow controlled from the server:",
+    "ordered": true,
+    "steps": [
+      "The victim enters a username. It is posted to [[login[.]php]] immediately, before the password, which lets the operator start a real sign-in in parallel.",
+      "The victim enters a password, which is posted at once.",
+      "The page asks for \"the code we sent to the phone number ending in 45\". The six-digit code is posted to [[login[.]php]].",
+      "The victim waits on a holding screen that polls [[wait[.]php]] every 1.8 seconds. The operator can trigger a request for a second code (typically used to approve a new device or a payment), and later release the victim to a redirect address of the operator's choosing. Without a release, the page returns the victim to the start after 9 minutes."
+    ],
+    "live_panel": "a person, or a script watching the panel, acts on each victim's data while the victim is still on the page."
+  },
+  "figures": [
+    {"section": "kit", "src": "img/chase-live-panel-stage1.png", "caption": "First stage of the kit: a Chase Online sign-in imitation asking for a username, with Chase branding, a mobile-app panel and a copyright footer."},
+    {"section": "related", "src": "img/chase-identity-harvest.png", "caption": "Separate kit: a seven-step \"Verify your account\" flow that starts by asking for account and routing numbers."}
+  ],
+  "related": {
+    "intro": "Two other Chase lookalikes surfaced during the same pivot. They use different code and different hosting, so we track them separately.",
+    "items": [
+      {"name": "securedchase[.]com", "text": "(seen 14 Nov 2026, 22:57 UTC). A seven-step identity harvest: account and routing numbers, sign-in, name, contact details, email and Social Security number, posted to [[capture[.]php]] behind a fake \"Checking your browser\" screen."},
+      {"name": "reset-chase[.]com", "text": "(seen 27 and 28 Oct 2026). Same page title. The two observations returned different pages, and neither matched either kit, so the link is not established yet."}
+    ]
+  },
+  "impact": [
+    ["Customers", "a victim who completes the flow gives the operator a working password and a valid one-time code during the same minute, which is enough for account takeover and, with the second code, approval of a new device or payment."],
+    ["The bank", "fraud losses and customer reimbursement, plus support load from compromised accounts. Customers who rely on SMS codes are not protected against this kit."]
+  ],
+  "hunting": {
+    "queries": [
+      ["Same server", [["page.ip:", "104.194.139.2", null]]],
+      ["Same page on any host", [["hash:", "7dd3512615f530b712283fb5e00bcbe42d5d3cf3e2a9d0841bfd4b503e20369d", null]]],
+      ["Next rotated hostname", [["page.domain:", "*chase*", "AND"], ["page.domain:", "*duckdns.org*", null]]],
+      ["Title reuse", [["page.title:", "\"Log in | Chase Online\"", "AND NOT"], ["page.apexDomain:", "chase.com", null]]]
+    ],
+    "proxy": "In web proxy logs, alert on requests to any [[*.duckdns.org]] host whose path ends in [[/login[.]php]] or [[/wait[.]php]], and on any connection to [[104[.]194[.]139[.]2]]. Repeated requests to [[wait[.]php]] at about two-second intervals from one client indicate a victim on the holding screen."
+  },
+  "iocs": [
+    ["Domain", "chaseonline-secure[.]duckdns[.]org", "Operator host, 13 Nov 2026"],
+    ["Domain", "chase-verify-secure[.]duckdns[.]org", "Operator host, 14 Nov 2026"],
+    ["IPv4", "104.194.139[.]2", "Dedicated server, RouterHosting, US"],
+    ["SHA-256", "7dd3512615f530b712283fb5e00bcbe42d5d3cf3e2a9d0841bfd4b503e20369d", "Kit page HTML"],
+    ["URL path", "/login.php, /wait.php, /wait.php?clear=1", "Capture and control endpoints"],
+    ["Domain", "securedchase[.]com", "Related, separate kit"],
+    ["SHA-256", "3fc5e3cc91583dcc2723d2046db1c75f22e6a8207606ac795c86ca1e70bf6c7c", "securedchase[.]com page HTML"],
+    ["Domain", "reset-chase[.]com", "Related, unconfirmed"]
+  ],
+  "mitre": [
+    ["T1583.003 Acquire Infrastructure: Virtual Private Server", "Dedicated nginx server at RouterHosting"],
+    ["T1583.001 Acquire Infrastructure: Domains", "Brand-themed hostnames on a free dynamic DNS service"],
+    ["T1566.002 Phishing: Spearphishing Link", "Delivery method assumed: a link to the lookalike host"],
+    ["T1056.003 Input Capture: Web Portal Capture", "Staged posting of username, password and codes to login.php"],
+    ["T1111 Multi-Factor Authentication Interception", "First and second one-time codes relayed through the live panel"]
+  ],
+  "recommendations": [
+    ["For the bank and its brand-protection team", [
+      "Report both hostnames to DuckDNS and the server address to RouterHosting's abuse desk, with the indicators in this report.",
+      "Watch for the next rotated hostname with the queries above, checked at least daily.",
+      "Move customers who use SMS codes toward app-based or passkey sign-in, and tell them the bank never asks for a code on a page reached from a link."
+    ]],
+    ["For SOC and fraud teams", [
+      "Block 104.194.139[.]2 and the two hostnames at web and mail gateways.",
+      "Hunt proxy logs for the [[login[.]php]] and [[wait[.]php]] pattern described above.",
+      "Flag Chase sessions that start with a new device right after a one-time code was sent, for fraud review."
+    ]]
+  ]
+}

@@ -10,7 +10,7 @@ import { ReviewPanel } from '../../components/ui/ReviewPanel'
 import { ScreenshotLarge } from '../../components/ui/Screenshot'
 import { fmtDateTime, fmtInt } from '../../lib/format'
 import { countryName, flag } from '../../charts/countries'
-import { Chips, KICKER } from './shared'
+import { Chips, DetectionTypeBadge, KICKER, MATCH_KIND_LABEL, RankFactors, ThreatPill } from './shared'
 
 const strs = (v: unknown): string[] => (Array.isArray(v) ? v.map((x) => (typeof x === 'string' ? x : typeof x === 'object' && x && 'value' in x ? String((x as { value: unknown }).value) : JSON.stringify(x))) : [])
 const Label = ({ children }: { children: string }) => <div className="muted" style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 6 }}>{children}</div>
@@ -76,7 +76,9 @@ export default function SampleDetail() {
               { k: 'Hosting', v: s.asn ? <span><span className="mono">{s.asn}</span> {s.asn_name}</span> : '—' },
               { k: 'Country', v: s.country ? `${flag(s.country)} ${countryName(s.country)}` : '—' },
               { k: 'TLS', v: meta.tlsIssuer ? `${meta.tlsIssuer}${meta.server ? ` · server ${meta.server}` : ''}` : '—' },
-              { k: 'Source', v: <span>{s.source}{s.source_id && <> · <Ext href={`https://urlscan.io/result/${s.source_id}/`}>urlscan result</Ext></>}</span> },
+              { k: 'Source', v: <span>{(s.sources?.length ? s.sources : [s.source]).join(' + ')}{s.source_id && <> · <Ext href={`https://urlscan.io/result/${s.source_id}/`}>urlscan result</Ext></>}</span> },
+              { k: 'Duplicates', v: s.duplicate_count ? <span>{s.duplicate_count} merged report{s.duplicate_count > 1 ? 's' : ''}{s.duplicate_urls.length > 0 && <div style={{ marginTop: 4, maxHeight: 120, overflow: 'auto' }}>{s.duplicate_urls.map((u) => <div key={u} className="mono muted" style={{ fontSize: 11, wordBreak: 'break-all' }}>{u}</div>)}</div>}</span> : <span className="muted">none</span> },
+              { k: 'Dedup key', v: <span className="mono" style={{ fontSize: 11, wordBreak: 'break-all' }}>{s.dedup_key ?? '—'}</span> },
               { k: 'Tags', v: <Chips items={s.source_tags} mono={false} /> },
               { k: 'First seen', v: fmtDateTime(s.first_seen) },
               { k: 'Fetched', v: `${fmtDateTime(s.fetched_at)} · ${s.fetch_status}${s.http_status ? ` · HTTP ${s.http_status}` : ''}` },
@@ -85,7 +87,19 @@ export default function SampleDetail() {
             ]} />
           </Card>
         </Span>
-        <Span n={4}><Card title="Hand check" subtitle="Is this phishing for the detected brand, and is it in the right campaign?"><ReviewPanel entityType="sample" entityId={s.id} /></Card></Span>
+        <Span n={4}>
+          <Card title={<span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>Threat rank <ThreatPill tier={s.threat_tier} score={s.threat_score} /></span>}
+            subtitle={<DetectionTypeBadge type={s.detection_type} />}>
+            {s.squat && <div style={{ marginBottom: 10 }}><KV items={[
+              { k: 'Imitates', v: <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}><Badge tone="accent">{s.squat.brand}</Badge>{MATCH_KIND_LABEL[s.squat.kind] ?? s.squat.kind}</span> },
+              { k: 'Evidence', v: <span className="mono" style={{ fontSize: 12 }}>{s.squat.evidence}</span> },
+              ...(s.squat.lure_words.length ? [{ k: 'Lure words', v: <span className="mono">{s.squat.lure_words.join(' ')}</span> }] : []),
+            ]} /></div>}
+            <RankFactors factors={s.rank_factors} />
+          </Card>
+          <div style={{ height: 16 }} />
+          <Card title="Hand check" subtitle="Is this phishing for the detected brand, and is it in the right campaign?"><ReviewPanel entityType="sample" entityId={s.id} /></Card>
+        </Span>
       </Grid>
 
       <Grid>

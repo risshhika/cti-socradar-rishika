@@ -10,6 +10,8 @@ const PhishingOverview = lazy(() => import('./pages/phishing/PhishingOverview'))
 const Campaigns = lazy(() => import('./pages/phishing/Campaigns'))
 const CampaignDetail = lazy(() => import('./pages/phishing/CampaignDetail'))
 const Kits = lazy(() => import('./pages/phishing/Kits'))
+const Leads = lazy(() => import('./pages/phishing/Leads'))
+const BrandReport = lazy(() => import('./pages/phishing/BrandReport'))
 const KitDetail = lazy(() => import('./pages/phishing/KitDetail'))
 const Samples = lazy(() => import('./pages/phishing/Samples'))
 const SampleDetail = lazy(() => import('./pages/phishing/SampleDetail'))
@@ -19,6 +21,7 @@ const Victims = lazy(() => import('./pages/landscape/Victims'))
 const Actors = lazy(() => import('./pages/landscape/Actors'))
 const ActorDetail = lazy(() => import('./pages/landscape/ActorDetail'))
 const IAB = lazy(() => import('./pages/landscape/IAB'))
+const XMonitor = lazy(() => import('./pages/landscape/XMonitor'))
 const Briefings = lazy(() => import('./pages/landscape/Briefings'))
 const BriefingDetail = lazy(() => import('./pages/landscape/BriefingDetail'))
 
@@ -35,11 +38,14 @@ export default function App() {
         <Route path="/phishing/samples" element={<Samples />} />
         <Route path="/phishing/samples/:id" element={<SampleDetail />} />
         <Route path="/phishing/detections" element={<Detections />} />
+        <Route path="/phishing/leads" element={<Leads />} />
+        <Route path="/phishing/report" element={<BrandReport />} />
         <Route path="/landscape" element={<LandscapeDashboard />} />
         <Route path="/landscape/victims" element={<Victims />} />
         <Route path="/landscape/actors" element={<Actors />} />
         <Route path="/landscape/actors/:slug" element={<ActorDetail />} />
         <Route path="/landscape/iab" element={<IAB />} />
+        <Route path="/landscape/x" element={<XMonitor />} />
         <Route path="/landscape/briefings" element={<Briefings />} />
         <Route path="/landscape/briefings/:id" element={<BriefingDetail />} />
         <Route path="/pipelines" element={<Pipelines />} />

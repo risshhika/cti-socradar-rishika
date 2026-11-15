@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+from functools import lru_cache
 from collections import Counter
 from typing import Any
 from urllib.parse import urljoin, urlparse
@@ -136,6 +137,11 @@ def dom_tokens(soup: BeautifulSoup) -> tuple[list[str], int, int]:
     return tokens, count, max_depth
 
 
+@lru_cache(maxsize=512)
+def _kw_rx(kw: str) -> re.Pattern[str]:
+    return re.compile(r"(?<![a-z0-9])" + re.escape(kw) + r"(?![a-z0-9])")
+
+
 def detect_brand(text: str, title: str | None, url: str, hint: str | None) -> tuple[str | None, float]:
     hay_title = (title or "").lower()
     hay_url = url.lower()
@@ -144,11 +150,14 @@ def detect_brand(text: str, title: str | None, url: str, hint: str | None) -> tu
     for brand, kws in BRAND_KEYWORDS.items():
         s = 0.0
         for kw in kws:
-            if kw in hay_title:
+            # whole words in title/text ("purchase" must not count as Chase); hostnames stay substring
+            # matches because brands are glued into them (securechase-login)
+            rx = _kw_rx(kw)
+            if rx.search(hay_title):
                 s += 2.0
             if kw.replace(" ", "") in hay_url.replace("-", "").replace(".", ""):
                 s += 1.0
-            n = hay_text.count(kw)
+            n = len(rx.findall(hay_text))
             if n:
                 s += min(n, 5) * 0.4
         if s:

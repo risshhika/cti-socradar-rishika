@@ -68,4 +68,4 @@ export const qstate = (q: { isLoading: boolean; isError: boolean; error: unknown
 /** Sankey node names carry trailing spaces to keep the brand/kit/hosting columns apart; trim for display. */
 export const cleanName = (s: string) => s.trimEnd()
 
-export const SOURCE_LABEL: Record<string, string> = { urlscan: 'urlscan.io', openphish: 'OpenPhish' }
+export const SOURCE_LABEL: Record<string, string> = { urlscan: 'urlscan.io', openphish: 'OpenPhish', phishtank: 'PhishTank', nrd: 'New domains (WhoisDS)' }

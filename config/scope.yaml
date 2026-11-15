@@ -12,10 +12,41 @@ phishing:
     - Revolut
     - Coinbase
     - Binance
-  days_back: 14
+  # Sources: WhoisDS newly-registered domains, urlscan.io, OpenPhish, PhishTank.
+  # Ingestion window for every source and the retention limit: anything older is pruned at the start
+  # of each run. Phishing pages live hours to days.
+  days_back: 7
   max_samples: 400
   # urlscan.io public search is rate-limited to 30 req/min per IP without a key.
   urlscan_queries_per_brand: 2
+  # Typosquat leads from WhoisDS newly-registered domains: the strongest are fetched as samples.
+  max_leads_promoted: 80
+  # Name printed as reporter on client reports
+  report_reporter: Rishika Desai
+  # Fragment chains: PayPal [pay, pal] matches pay*pal* (pay-pal, paypa1, pay.pal-ai ...).
+  # Brands not listed are split automatically (multi-word -> words; 7+ letters -> two halves).
+  brand_fragments:
+    PayPal: [pay, pal]
+    Wells Fargo: [wel, far, go]
+    Coinbase: [coin, base]
+    Binance: [bin, ance]
+    Barclays: [barc, lay]
+    Santander: [san, tander]
+    Revolut: [revo, lut]
+  # Domains the brand owns: never flagged, however they are spelled.
+  brand_domains:
+    PayPal: [paypal.com, paypal.me, paypalobjects.com, paypal-community.com]
+    Chase: [chase.com, jpmorganchase.com, jpmorgan.com]
+    Wells Fargo: [wellsfargo.com, wf.com, wellsfargoadvisors.com]
+    Bank of America: [bankofamerica.com, bofa.com, ml.com]
+    HSBC: [hsbc.com, hsbc.co.uk, hsbc.com.hk, hsbc.fr, us.hsbc.com]
+    Barclays: [barclays.com, barclays.co.uk, barclaycard.co.uk, barclaycardus.com]
+    Santander: [santander.com, santander.co.uk, santanderbank.com, santander.es]
+    Revolut: [revolut.com, revolut.me]
+    Coinbase: [coinbase.com, cb.com]
+    Binance: [binance.com, binance.us, bnbchain.org]
+  # Ordinary words that contain a brand (added to built-in lists such as revolution/purchase).
+  brand_exclusions: {}
 landscape:
   sector: "Healthcare"
   region: "Europe"
@@ -30,3 +61,18 @@ landscape:
     - https://feeds.feedburner.com/TheHackersNews
     - https://www.darkreading.com/rss.xml
     - https://intel471.com/blog/feed
+  # X (Twitter) IAB monitor. Each query is narrowed to financial / fintech wording before it is sent
+  # (see x_sectors), retweets are excluded, and every match is preserved: raw record, images, post card.
+  x_sectors: ["Financial Services"]
+  x_max_pages: 2
+  x_queries:
+    - label: IAB keywords
+      query: '("initial access" OR "access broker") has:images'
+    - label: Remote access for sale
+      query: '("RDP" OR "VPN" OR "Citrix") ("sale" OR "selling") has:images'
+    - label: Financial access or breach
+      query: '("bank" OR "financial institution" OR "fintech") ("access" OR "breach") has:images'
+    - label: Access priced by revenue
+      query: '("revenue" OR "price") "access" has:images'
+    - label: Forum mentions
+      query: '("Exploit forum" OR "XSS forum" OR "BreachForums") has:images'

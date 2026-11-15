@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from .api import landscape, overview, phishing, pipelines, reviews, scope
+from .api import landscape, overview, phishing, pipelines, reviews, scope, xmonitor
 from .config import get_settings
 from .db import init_db
 from .pipelines import runner
@@ -28,7 +28,7 @@ app = FastAPI(title="CTI Ops Platform", version="0.1.0", lifespan=lifespan,
               description="P4 Phishing Campaign Clustering & Kit Fingerprinting · P6 Sector Threat Landscape & IAB/Ransomware Tracker")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-for r in (overview.router, scope.router, pipelines.router, reviews.router, phishing.router, landscape.router):
+for r in (overview.router, scope.router, pipelines.router, reviews.router, phishing.router, landscape.router, xmonitor.router):
     app.include_router(r)
 
 

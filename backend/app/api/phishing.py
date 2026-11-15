@@ -14,9 +14,9 @@ from sqlmodel import Session, col, func, or_, select
 
 from ..config import get_settings
 from ..db import get_session
-from ..models import AnalystReview, Detection, PhishCampaign, PhishKit, PhishSample
-from ..schemas import (CampaignDetail, CampaignOut, DetectionOut, KeyCount, KitDetail, KitOut, Page, PhishingStats,
-                       ReviewOut, SampleList, SampleOut, TimePoint)
+from ..models import AnalystReview, Detection, DomainLead, PhishCampaign, PhishKit, PhishSample
+from ..schemas import (CampaignDetail, CampaignOut, DetectionOut, KeyCount, KitDetail, KitOut, LeadList, LeadOut,
+                       LeadStats, Page, PhishingStats, ReviewOut, SampleList, SampleOut, TimePoint)
 from .common import key_counts, last_run, latest_verdicts
 
 router = APIRouter(prefix="/api/phishing", tags=["phishing"])
@@ -48,7 +48,9 @@ def _sample_out(s: PhishSample, kit_names: dict[int, str], camp_names: dict[int,
                      features=s.features or {}, campaign_id=s.campaign_id,
                      campaign_name=camp_names.get(s.campaign_id) if s.campaign_id else None, kit_id=s.kit_id,
                      kit_name=kit_names.get(s.kit_id) if s.kit_id else None, kit_confidence=s.kit_confidence,
-                     review_verdict=verdicts.get(s.id))
+                     review_verdict=verdicts.get(s.id), detection_type=s.detection_type, threat_score=s.threat_score or 0,
+                     threat_tier=s.threat_tier, squat=s.squat, rank_factors=s.rank_factors or [], dedup_key=s.dedup_key,
+                     sources=s.sources or [s.source], duplicate_urls=s.duplicate_urls or [], duplicate_count=s.duplicate_count or 0)
 
 
 def _kit_out(k: PhishKit) -> KitOut:
@@ -120,10 +122,11 @@ def stats(session: Session = Depends(get_session)):
         brands=key_counts((s.brand for s in ok), top=12), tlds=key_counts((s.tld for s in samples), top=12),
         asns=key_counts((f"{s.asn} {s.asn_name or ''}".strip() for s in samples if s.asn), top=10),
         countries=key_counts((s.country for s in samples if s.country), top=10),
-        sources=key_counts(s.source for s in samples), fetch_status=key_counts(s.fetch_status for s in samples),
+        sources=key_counts(src for s in samples for src in (s.sources or [s.source])),
+        fetch_status=key_counts(s.fetch_status for s in samples),
         kit_distribution=key_counts((kit_names.get(s.kit_id) for s in ok if s.kit_id), top=12, label_none="unmatched"),
         timeline=timeline, campaign_sizes=[KeyCount(key=k, count=sizes.get(k, 0)) for k in size_order],
-        last_run=last_run(session, "phishing"),
+        last_run=last_run(session, "phishing"), duplicates_merged=sum(s.duplicate_count or 0 for s in samples),
     )
 
 
@@ -189,13 +192,159 @@ def get_kit(kit_id: int, session: Session = Depends(get_session)):
                      detections=[_det_out(d) for d in dets])
 
 
+# --------------------------------------------------------------------------- typosquat leads
+
+def _lead_out(d: DomainLead) -> LeadOut:
+    return LeadOut(id=d.id, domain=d.domain, brand=d.brand, match_kind=d.match_kind, match_score=d.match_score,
+                   evidence=d.evidence, lure_words=d.lure_words or [], sources=d.sources or [], first_seen=d.first_seen,
+                   last_seen=d.last_seen, meta=d.meta or {}, status=d.status, sample_id=d.sample_id,
+                   threat_score=d.threat_score or 0, threat_tier=d.threat_tier, rank_factors=d.rank_factors or [])
+
+
+def _lead_stmt(brand, match_kind, source, threat_tier, status, q):
+    stmt = select(DomainLead)
+    if brand:
+        stmt = stmt.where(DomainLead.brand == brand)
+    if match_kind:
+        stmt = stmt.where(DomainLead.match_kind == match_kind)
+    if threat_tier:
+        stmt = stmt.where(DomainLead.threat_tier == threat_tier)
+    if status:
+        stmt = stmt.where(DomainLead.status == status)
+    if source:
+        stmt = stmt.where(col(DomainLead.sources).contains(f'"{source}"'))
+    if q:
+        stmt = stmt.where(col(DomainLead.domain).ilike(f"%{q}%"))
+    return stmt
+
+
+@router.get("/reports/brands")
+def report_brands(session: Session = Depends(get_session)):
+    """Brands with samples in the window, most-targeted first (for the report picker)."""
+    from ..modules.phishing.report import available_brands
+    return available_brands(session)
+
+
+@router.get("/reports/brand")
+def brand_report(brand: str, session: Session = Depends(get_session)):
+    from ..modules.phishing.report import build_brand_report
+    rep = build_brand_report(session, brand)
+    if rep.get("error"):
+        raise HTTPException(404, rep["error"])
+    return rep
+
+
+@router.get("/reports/brand.html", response_class=Response)
+def brand_report_html(brand: str, download: bool = False, reporter: str | None = None, classification: str = "TLP:CLEAR",
+                      session: Session = Depends(get_session)):
+    """Client report for one brand in the approved (Chase) template: brand statistics and charts, then the
+    brand's leading campaign. Refuses (422) if any visible text names an internal source."""
+    from ..config import load_scope
+    from ..modules.phishing import client_report as cr
+    who = reporter or load_scope().phishing.report_reporter or "Analyst"
+    try:
+        spec = cr.build_for_brand(session, brand, who, classification)
+        body = cr.render(spec)
+    except cr.NotReportable as e:
+        raise HTTPException(404, str(e))
+    except cr.ClientLeakError as e:
+        raise HTTPException(422, {"error": str(e), "leaks": e.leaks})
+    headers = {"Content-Security-Policy": "default-src 'none'; img-src data:; style-src 'unsafe-inline'"}
+    if download:
+        headers["Content-Disposition"] = f'attachment; filename="{spec["report_id"]}.html"'
+    return Response(content=body, media_type="text/html; charset=utf-8", headers=headers)
+
+
+@router.get("/samples/{sample_id}/screenshot")
+def sample_screenshot(sample_id: int, session: Session = Depends(get_session)):
+    """urlscan's stored screenshot, cached locally (the phishing host itself is never contacted)."""
+    from ..modules.phishing.report import screenshot_bytes
+    s = session.get(PhishSample, sample_id)
+    data = screenshot_bytes(s) if s else None
+    if not data:
+        raise HTTPException(404, "no screenshot for this sample")
+    return Response(content=data, media_type="image/png", headers={"Cache-Control": "max-age=86400"})
+
+
+def _client_spec(session: Session, campaign_id: int, reporter: str | None, classification: str, force: bool, screenshots: str):
+    from ..config import load_scope
+    from ..modules.phishing import client_report as cr
+    who = reporter or load_scope().phishing.report_reporter or "Analyst"
+    try:
+        return cr.build_from_campaign(session, campaign_id, who, classification, screenshots=screenshots, force=force)
+    except cr.NotReportable as e:
+        raise HTTPException(409, str(e))
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+
+
+@router.get("/campaigns/{campaign_id}/client-report")
+def client_report_spec(campaign_id: int, reporter: str | None = None, classification: str = "TLP:CLEAR",
+                       force: bool = False, session: Session = Depends(get_session)):
+    """The auto-filled report spec plus any client-rule violations (for review before export)."""
+    from ..modules.phishing import client_report as cr
+    spec = _client_spec(session, campaign_id, reporter, classification, force, "link")
+    return {"spec": spec, "leaks": cr.leak_check(spec)}
+
+
+@router.get("/campaigns/{campaign_id}/client-report.html", response_class=Response)
+def client_report_html(campaign_id: int, reporter: str | None = None, classification: str = "TLP:CLEAR",
+                       force: bool = False, download: bool = False, session: Session = Depends(get_session)):
+    """Client-facing report in the approved template. Refuses (422) if any visible text names an internal source."""
+    from ..modules.phishing import client_report as cr
+    spec = _client_spec(session, campaign_id, reporter, classification, force, "embed")
+    try:
+        body = cr.render(spec)
+    except cr.ClientLeakError as e:
+        raise HTTPException(422, {"error": str(e), "leaks": e.leaks})
+    headers = {"Content-Security-Policy": "default-src 'none'; img-src data: https:; style-src 'unsafe-inline'"}
+    if download:
+        headers["Content-Disposition"] = f'attachment; filename="{spec["report_id"]}.html"'
+    return Response(content=body, media_type="text/html; charset=utf-8", headers=headers)
+
+
+@router.get("/leads", response_model=LeadList)
+def list_leads(brand: str | None = None, match_kind: str | None = None, source: str | None = None,
+               threat_tier: str | None = None, status: str | None = None, q: str | None = None, sort: str = "threat",
+               page: int = Query(1, ge=1), size: int = Query(50, ge=1, le=500), session: Session = Depends(get_session)):
+    stmt = _lead_stmt(brand, match_kind, source, threat_tier, status, q)
+    total = session.exec(select(func.count()).select_from(stmt.subquery())).one()
+    order = (DomainLead.first_seen.desc(),) if sort == "recent" else (DomainLead.threat_score.desc(), DomainLead.first_seen.desc())
+    rows = session.exec(stmt.order_by(*order).offset((page - 1) * size).limit(size)).all()
+    return LeadList(items=[_lead_out(d) for d in rows], page=Page(page=page, size=size, total=total))
+
+
+@router.get("/leads/stats", response_model=LeadStats)
+def lead_stats(session: Session = Depends(get_session)):
+    leads = session.exec(select(DomainLead)).all()
+    samples = session.exec(select(PhishSample.detection_type, PhishSample.threat_tier)).all()
+    by_day: Counter[str] = Counter(d.first_seen.strftime("%Y-%m-%d") for d in leads if d.first_seen)
+    tier_order = ["critical", "high", "medium", "low"]
+    tiers = Counter(d.threat_tier for d in leads if d.threat_tier)
+    stiers = Counter(t for _, t in samples if t)
+    return LeadStats(
+        leads=len(leads), by_brand=key_counts((d.brand for d in leads), top=20), by_kind=key_counts(d.match_kind for d in leads),
+        by_source=key_counts(src for d in leads for src in (d.sources or [])),
+        by_tier=[KeyCount(key=t, count=tiers.get(t, 0)) for t in tier_order],
+        by_status=key_counts(d.status for d in leads),
+        detection_types=key_counts((dt for dt, _ in samples), label_none="not ranked"),
+        sample_tiers=[KeyCount(key=t, count=stiers.get(t, 0)) for t in tier_order],
+        timeline=[TimePoint(period=k, value=v) for k, v in sorted(by_day.items())],
+    )
+
+
 # --------------------------------------------------------------------------- samples
 
 @router.get("/samples", response_model=SampleList)
 def list_samples(campaign_id: int | None = None, kit_id: int | None = None, brand: str | None = None,
                  fetch_status: str | None = None, source: str | None = None, q: str | None = None,
+                 detection_type: str | None = None, threat_tier: str | None = None, sort: str = "recent",
                  page: int = Query(1, ge=1), size: int = Query(50, ge=1, le=500), session: Session = Depends(get_session)):
     stmt = select(PhishSample)
+    if detection_type:
+        stmt = stmt.where(PhishSample.detection_type == detection_type)
+    if threat_tier:
+        stmt = stmt.where(PhishSample.threat_tier == threat_tier)
     if campaign_id is not None:
         stmt = stmt.where(PhishSample.campaign_id == campaign_id)
     if kit_id is not None:
@@ -211,8 +360,8 @@ def list_samples(campaign_id: int | None = None, kit_id: int | None = None, bran
         stmt = stmt.where(or_(col(PhishSample.url).ilike(like), col(PhishSample.domain).ilike(like),
                               col(PhishSample.title).ilike(like), col(PhishSample.ip).ilike(like)))
     total = session.exec(select(func.count()).select_from(stmt.subquery())).one()
-    rows = session.exec(stmt.order_by(PhishSample.first_seen.desc(), PhishSample.id.desc())
-                        .offset((page - 1) * size).limit(size)).all()
+    order = (PhishSample.threat_score.desc(), PhishSample.first_seen.desc()) if sort == "threat" else         (PhishSample.first_seen.desc(), PhishSample.id.desc())
+    rows = session.exec(stmt.order_by(*order).offset((page - 1) * size).limit(size)).all()
     return SampleList(items=_samples_out(session, rows), page=Page(page=page, size=size, total=total))
 
 
@@ -280,6 +429,17 @@ def export(format: str, campaign_id: int | None = None, session: Session = Depen
     dets = session.exec(select(Detection).where(col(Detection.campaign_id).in_(camp_ids))).all() if camp_ids else []
     camp_by_id = {c.id: c for c in camps}
 
+    if format == "leads-csv":
+        buf = io.StringIO()
+        w = csv.writer(buf)
+        w.writerow(["domain", "brand", "match_kind", "evidence", "lure_words", "sources", "first_seen", "status",
+                    "threat_score", "threat_tier"])
+        for d in session.exec(select(DomainLead).order_by(DomainLead.threat_score.desc())):
+            w.writerow([d.domain, d.brand, d.match_kind, d.evidence or "", " ".join(d.lure_words or []),
+                        " ".join(d.sources or []), d.first_seen.isoformat() if d.first_seen else "", d.status,
+                        d.threat_score, d.threat_tier or ""])
+        return _attachment(buf.getvalue(), "typosquat-leads.csv", "text/csv")
+
     if format == "csv":
         buf = io.StringIO()
         w = csv.writer(buf)
@@ -322,7 +482,7 @@ def export(format: str, campaign_id: int | None = None, session: Session = Depen
     if format == "campaign-cards":
         return _attachment(campaign_cards(camps, samples, dets, kit_names), f"campaign-cards{suffix}.md", "text/markdown")
 
-    raise HTTPException(404, f"unknown export format {format!r}; use csv|stix|sigma|yara|iocs|campaign-cards")
+    raise HTTPException(404, f"unknown export format {format!r}; use csv|leads-csv|stix|sigma|yara|iocs|campaign-cards")
 
 
 def _stix_id(kind: str, key: str) -> str:

@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { FileBarChart } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../../lib/api'
 import { usePhishingViz, qstate, cleanName, SOURCE_LABEL } from '../../lib/phishingViz'
@@ -83,17 +84,17 @@ export default function PhishingOverview() {
     <>
       <PageHeader kicker={KICKER} title="Campaign overview"
         subtitle={<>{scope.data ? `${scope.data.phishing.sector} · ${scope.data.phishing.brands.length} watched brands · ${scope.data.phishing.days_back}-day window` : 'Phishing pages grouped into campaigns and kits'}{lastRun && <> · last run {fmtAgo(lastRun.finished_at)}</>}</>}
-        actions={<><ExportButtons formats={['campaign-cards', 'stix', 'sigma', 'yara']} /><RunPipelineButton name="phishing" label="Run pipeline" /></>} />
+        actions={<><ExportButtons formats={['campaign-cards', 'stix', 'sigma', 'yara']} /><button className="btn" onClick={() => nav('/phishing/report')}><FileBarChart size={14} /> Generate executive report</button><RunPipelineButton name="phishing" label="Run pipeline" /></>} />
 
       <KpiRow>
-        <KpiTile loading={!v} kpi={k && v ? { label: 'Phishing pages', value: k.samples.cur, prev: k.samples.prev, window: 'last 7 days', spark: v.daily_total, sparkLabels: v.days, source: 'urlscan.io · OpenPhish', note: `${stats.data?.samples ?? '…'} in window`, to: '/phishing/samples' } : undefined} />
+        <KpiTile loading={!v} kpi={k && v ? { label: 'Phishing pages', value: k.samples.cur, prev: k.samples.prev, window: 'last 7 days', spark: v.daily_total, sparkLabels: v.days, source: 'urlscan.io · OpenPhish · PhishTank · WhoisDS', note: `${stats.data?.samples ?? '…'} in window`, to: '/phishing/samples' } : undefined} />
         <KpiTile loading={!v} kpi={k && v ? { label: 'New campaigns', value: k.campaigns_new.cur, prev: k.campaigns_new.prev, window: 'last 7 days', spark: v.daily_new_campaigns, sparkLabels: v.days, source: 'clustering', note: `${stats.data?.active_campaigns ?? '…'} active`, to: '/phishing/campaigns' } : undefined} />
         <KpiTile loading={!v} kpi={k && v ? { label: 'Brands impersonated', value: k.brands.cur, prev: k.brands.prev, window: 'last 7 days', spark: v.daily_clustered, sparkLabels: v.days, source: 'brand detection', note: `top: ${v.brands.filter((b) => b.key !== 'Unbranded').slice(0, 2).map((b) => b.key).join(', ')}` } : undefined} />
         <KpiTile loading={!v} kpi={k && v ? { label: 'Detections shipped', value: k.detections.cur, prev: k.detections.prev, window: 'last 7 days', spark: v.daily_detections ?? [], sparkLabels: v.days, source: 'Sigma · YARA · IOC', note: `${stats.data?.detections ?? '…'} total`, to: '/phishing/detections', upIsBad: null } : undefined} />
       </KpiRow>
 
       <Grid>
-        <Span n={8}><Viz title="Collection tempo" question="How many phishing pages arrived per day, from which feed, and how many joined a campaign?" source="urlscan.io search · OpenPhish feed" asOf={asOf} query={qs} height={250} option={o?.tempo}
+        <Span n={8}><Viz title="Collection tempo" question="How many phishing pages arrived per day, from which feed, and how many joined a campaign?" source="urlscan.io · OpenPhish · PhishTank · WhoisDS" asOf={asOf} query={qs} height={250} option={o?.tempo}
           table={v ? { columns: ['day', ...Object.keys(v.daily_by_source), 'clustered'], rows: v.days.map((d, i) => [d, ...Object.values(v.daily_by_source).map((s) => s[i]), v.daily_clustered[i]]) } : undefined} /></Span>
         <Span n={4}><Viz title="Pipeline funnel" question="How much of what we collect survives to a clustered, attributed campaign?" source="pipeline run" query={qs} height={250} option={o?.funnel}
           table={v ? { columns: ['stage', 'samples'], rows: v.funnel.map((f) => [f.name, f.value]) } : undefined} /></Span>
@@ -110,7 +111,7 @@ export default function PhishingOverview() {
         <Span n={6}><Viz title="Brand → kit → hosting" question="Which kits are used against which brands, and where are they hosted?" source="clustered samples" query={qs} height={440} option={o?.sankey}
           table={v ? { columns: ['from', 'to', 'samples'], rows: v.sankey.links.map((l) => [cleanName(l.source), cleanName(l.target), l.value]) } : undefined} /></Span>
         <Span n={6}><Viz title="Hosting countries" question="Where are the phishing pages hosted? (urlscan-observed IP geolocation)" source="urlscan.io page.country" query={qs} height={440} option={o?.world} needsWorld empty={!!v && !v.countries.length}
-          caveat="OpenPhish URLs carry no hosting data"
+          caveat="OpenPhish and WhoisDS records carry no hosting data until captured"
           table={v ? { columns: ['country', 'samples'], rows: v.countries.map((c) => [countryName(c.iso2), c.value]) } : undefined} /></Span>
       </Grid>
       <Grid>

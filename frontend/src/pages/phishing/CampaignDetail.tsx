@@ -14,6 +14,7 @@ import { fmtDate, fmtInt, fmtPct } from '../../lib/format'
 import { fmtDay } from '../../lib/viz'
 import type { KeyCount } from '../../lib/types'
 import { Chips, DetectionList, ExportButtons, KICKER, SampleTable, Viz, fitRadar, tame } from './shared'
+import { ClientReportButton } from './ClientReportButton'
 
 const asKc = (v: unknown): KeyCount[] => (Array.isArray(v) ? v.map((x) => (typeof x === 'string' ? { key: x, count: 1 } : { key: String((x as Record<string, unknown>).key ?? (x as Record<string, unknown>).value ?? ''), count: Number((x as Record<string, unknown>).count ?? 1) })) : [])
 const asStr = (v: unknown): string[] => (Array.isArray(v) ? v.map((x) => (typeof x === 'string' ? x : JSON.stringify(x))) : [])
@@ -59,7 +60,7 @@ export default function CampaignDetail() {
       <PageHeader kicker={KICKER}
         title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}><span className="mono">{c.name}</span><StatusBadge status={c.status} />{c.brand && <Badge tone="accent">{c.brand}</Badge>}<Badge>{c.cluster_method}</Badge><VerdictBadge verdict={c.review_verdict} /></span>}
         subtitle={`${fmtDate(c.first_seen)} → ${fmtDate(c.last_seen)} · ${c.sector ?? 'sector n/a'}${kit ? ` · kit: ${kit.name}` : ''}`}
-        actions={<>{back}<ExportButtons campaignId={c.id} formats={['campaign-cards', 'stix', 'sigma', 'yara', 'iocs']} /></>} />
+        actions={<>{back}<ClientReportButton id={c.id} /><ExportButtons campaignId={c.id} formats={['campaign-cards', 'stix', 'sigma', 'yara', 'iocs']} /></>} />
 
       <StatStrip items={[
         { label: 'Pages', value: fmtInt(c.sample_count), sub: `${d.samples.filter((x) => x.fetch_status === 'ok').length} captured live` },

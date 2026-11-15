@@ -1,6 +1,7 @@
 import {
+  AtSign,
   Activity, Boxes, Building2, ClipboardCheck, DollarSign, FileSearch, FileText, Fish, LayoutDashboard, Radar, Settings,
-  ShieldCheck, ScanSearch, Users, Workflow, type LucideIcon,
+  ShieldCheck, ScanSearch, SpellCheck, Users, Workflow, FileBarChart, type LucideIcon,
 } from 'lucide-react'
 
 export interface NavItem { to: string; label: string; icon: LucideIcon; badge?: 'campaigns' | 'scope' }
@@ -15,7 +16,9 @@ export const NAV: NavGroup[] = [
       { to: '/phishing/campaigns', label: 'Campaigns', icon: Boxes, badge: 'campaigns' },
       { to: '/phishing/kits', label: 'Kit fingerprints', icon: FileSearch },
       { to: '/phishing/samples', label: 'Samples', icon: ScanSearch },
+      { to: '/phishing/leads', label: 'Typosquat leads', icon: SpellCheck },
       { to: '/phishing/detections', label: 'Detections', icon: ShieldCheck },
+      { to: '/phishing/report', label: 'Executive report', icon: FileBarChart },
     ],
   },
   {
@@ -25,6 +28,7 @@ export const NAV: NavGroup[] = [
       { to: '/landscape/victims', label: 'Victim tracker', icon: Building2, badge: 'scope' },
       { to: '/landscape/actors', label: 'Ransomware actors', icon: Users },
       { to: '/landscape/iab', label: 'Access brokers', icon: DollarSign },
+      { to: '/landscape/x', label: 'X broker monitor', icon: AtSign },
       { to: '/landscape/briefings', label: 'Monthly briefings', icon: FileText },
     ],
   },

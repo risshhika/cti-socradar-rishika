@@ -1,0 +1,116 @@
+{#- Client-facing campaign report. Layout approved 15 Nov 2026 (Chase live-panel report, analyst edit).
+    Rules: no names of internal tools or feeds anywhere in visible text (enforced by client_report.leak_check);
+    prose IOCs defanged in red italic; major sections start on a new page. Google Docs imports this HTML. -#}
+{%- set FONT = "Nunito, Arial, sans-serif" -%}
+{%- set NAVY = "#0B1F3A" -%}{%- set NAVY2 = "#12305A" -%}{%- set TINT = "#E8EEF7" -%}
+{%- set BREAK = "page-break-before: always;" -%}
+{%- macro h(text, brk=False) -%}
+<h1 style="font-family: {{ FONT }}; font-size: 24pt; font-weight: bold; color: #1F2733; margin: 18pt 0 8pt 0;{% if brk %} {{ BREAK }}{% endif %}">{{ text }}</h1>
+{%- endmacro -%}
+{%- macro thead(cols) -%}
+<tr style="background-color: {{ NAVY }};">{% for c in cols %}<td style="color: #FFFFFF; font-weight: bold;">{{ c }}</td>{% endfor %}</tr>
+{%- endmacro -%}
+{%- macro figure(f) -%}
+<p style="text-align: center; {{ BREAK }}"><img src="{{ f.src }}" width="600" style="border: 1px solid #1F2733;" alt="{{ f.alt }}"></p>
+<p style="text-align: center; color: #6B7685; font-size: 9pt; font-style: italic;">Figure {{ f.n }}. {{ f.caption }}</p>
+{%- endmacro -%}
+{%- macro chart(f) -%}
+<p style="text-align: center; margin-top: 14pt;"><img src="{{ f.src }}" width="560" alt="{{ f.alt }}"></p>
+<p style="text-align: center; color: #6B7685; font-size: 9pt; font-style: italic;">Figure {{ f.n }}. {{ f.caption }}</p>
+{%- endmacro -%}
+<html>
+<head><meta charset="utf-8"><title>{{ s.title }}</title></head>
+<body style="font-family: {{ FONT }}; font-size: 11pt; color: #1F2733;">
+
+<table style="width: 100%; border-collapse: collapse;">
+<tr><td style="background-color: {{ NAVY }}; padding: 18pt 20pt;">
+<p style="color: #4FA3FF; font-size: 10pt; font-weight: bold; margin: 0;">{{ s.kicker }}</p>
+<p style="color: #FFFFFF; font-size: 24pt; font-weight: bold; margin: 6pt 0 4pt 0;">{{ s.title }}</p>
+<p style="color: #C9D6EA; font-size: 11pt; margin: 0;">{{ s.subtitle }}</p>
+</td></tr>
+<tr><td style="background-color: {{ NAVY2 }}; padding: 8pt 20pt;">
+<p style="color: #FFFFFF; font-size: 10pt; margin: 0;"><b>Reporter:</b> {{ s.reporter }} &nbsp;&nbsp;|&nbsp;&nbsp; <b>Date:</b> {{ s.date }} &nbsp;&nbsp;|&nbsp;&nbsp; <b>Classification:</b> {{ s.classification }} &nbsp;&nbsp;|&nbsp;&nbsp; <b>Report ID:</b> {{ s.report_id }}</p>
+</td></tr>
+</table>
+<p style="color: #6B7685; font-size: 9pt;">{{ s.disclaimer }}</p>
+
+{{ h("Executive summary") }}
+{% for p in s.executive_summary %}<p>{{ p | rich }}</p>
+{% endfor %}
+
+{{ h("At a glance") }}
+<table style="width: 100%; border-collapse: collapse;" border="1" cellpadding="6">
+{% for label, value in s.at_a_glance %}<tr><td style="background-color: {{ TINT }}; width: 32%;"><b>{{ label }}</b></td><td>{{ value | rich }}</td></tr>
+{% endfor %}</table>
+
+{% if s.landscape %}
+{{ h(s.landscape.heading, brk=True) }}
+<table style="width: 100%; border-collapse: collapse;" border="1" cellpadding="6">
+{% for label, value in s.landscape.stats %}<tr><td style="background-color: {{ TINT }}; width: 40%;"><b>{{ label }}</b></td><td>{{ value | rich }}</td></tr>
+{% endfor %}</table>
+{% for f in s.figures if f.section == "landscape" %}{{ chart(f) }}
+{% endfor %}
+{% endif %}
+
+{% if s.linkage.rows %}
+{{ h(s.linkage.heading, brk=True) }}
+<p>{{ s.linkage.intro | rich }}</p>
+<table style="width: 100%; border-collapse: collapse;" border="1" cellpadding="6">
+{{ thead(["Evidence", "Observation", "Weight"]) }}
+{% for ev, obs, w in s.linkage.rows %}<tr><td>{{ ev }}</td><td>{{ obs | rich }}</td><td>{{ w }}</td></tr>
+{% endfor %}</table>
+{% endif %}
+
+{% if s.kit.steps %}
+{{ h(s.kit.heading) }}
+<p>{{ s.kit.intro | rich }}</p>
+{% if s.kit.ordered %}<ol>{% else %}<ul>{% endif %}
+{% for st in s.kit.steps %}<li>{{ st | rich }}</li>
+{% endfor %}{% if s.kit.ordered %}</ol>{% else %}</ul>{% endif %}
+{% if s.kit.live_panel %}<p><b>{{ s.kit.live_panel_label }}</b> {{ s.kit.live_panel | rich }}</p>{% endif %}
+{% for f in s.figures if f.section == "kit" %}{{ figure(f) }}
+{% endfor %}
+{% endif %}
+
+{% if s.related["items"] %}
+{{ h("Related activity, not linked") }}
+<p>{{ s.related.intro | rich }}</p>
+<ul>
+{% for it in s.related["items"] %}<li><b>{{ it.name }}</b> {{ it.text | rich }}</li>
+{% endfor %}</ul>
+{% for f in s.figures if f.section == "related" %}{{ figure(f) }}
+{% endfor %}
+{% endif %}
+
+{{ h("Impact") }}
+<ul>
+{% for label, text in s.impact %}<li><b>{{ label }}:</b> {{ text | rich }}</li>
+{% endfor %}</ul>
+
+{{ h("Detection and hunting:", brk=True) }}
+<table style="width: 100%; border-collapse: collapse;" border="1" cellpadding="6">
+{{ thead(["Purpose", "Query"]) }}
+{% for purpose, clauses in s.hunting.queries %}<tr><td>{{ purpose }}</td><td>{% for field, value, joiner in clauses %}<b>{{ field }}</b>{{ value }}{% if joiner %} {{ joiner }} {% endif %}{% endfor %}</td></tr>
+{% endfor %}</table>
+<p>{{ s.hunting.proxy | rich }}</p>
+
+{{ h("Indicators of compromise") }}
+<table style="width: 100%; border-collapse: collapse;" border="1" cellpadding="6">
+{{ thead(["Type", "Indicator", "Context"]) }}
+{% for t, ind, ctx in s.iocs %}<tr><td>{{ t }}</td><td>{{ ind }}</td><td>{{ ctx }}</td></tr>
+{% endfor %}</table>
+
+{{ h("MITRE ATT&CK mapping", brk=True) }}
+<table style="width: 100%; border-collapse: collapse;" border="1" cellpadding="6">
+{{ thead(["Technique", "Observed as"]) }}
+{% for t, obs in s.mitre %}<tr><td>{{ t }}</td><td>{{ obs | rich }}</td></tr>
+{% endfor %}</table>
+
+{{ h("Recommendations", brk=True) }}
+{% for group, items in s.recommendations %}<p><b>{{ group }}</b></p>
+<ul>
+{% for it in items %}<li>{{ it | rich }}</li>
+{% endfor %}</ul>
+{% endfor %}
+</body>
+</html>

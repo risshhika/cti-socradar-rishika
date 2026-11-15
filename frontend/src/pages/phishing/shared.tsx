@@ -4,13 +4,13 @@ import { Download } from 'lucide-react'
 import { ChartCard, type TableTwin } from '../../components/ui/ChartCard'
 import { EChart } from '../../charts/EChart'
 import type { EChartsCoreOption } from '../../charts/echarts'
-import { Badge, ConfidenceBadge, Code, DataTable, EmptyState, StatusBadge, VerdictBadge } from '../../components/ui'
+import { Badge, ConfidenceBadge, Code, DataTable, EmptyState, SeverityPill, StatusBadge, VerdictBadge } from '../../components/ui'
 import { CopyButton } from '../../components/ui/CopyButton'
 import { ScreenshotThumb } from '../../components/ui/Screenshot'
 import { api } from '../../lib/api'
 import { fmtDate, truncate } from '../../lib/format'
 import { countryName, flag } from '../../charts/countries'
-import type { DetectionOut, SampleOut } from '../../lib/types'
+import type { DetectionOut, RankFactor, SampleOut, ThreatTier } from '../../lib/types'
 
 export const KICKER = 'P4 · Phishing intelligence'
 
@@ -43,6 +43,37 @@ export function ExportButtons({ campaignId, formats = ['campaign-cards', 'stix',
   return <>{formats.map((f) => <a key={f} className="btn btn-ghost" href={api.phishing.exportUrl(f, campaignId)} title={`Download ${label[f]}`}><Download size={14} />{label[f]}</a>)}</>
 }
 
+export const DETECTION_TYPE_LABEL: Record<string, string> = { typosquat: 'Typosquat host', content: 'Content only', unattributed: 'Unattributed' }
+export const MATCH_KIND_LABEL: Record<string, string> = { embed: 'Brand embedded', homoglyph: 'Homoglyph', fragment: 'Fragment chain', typo: 'Typo' }
+export const TIER_ORDER: ThreatTier[] = ['critical', 'high', 'medium', 'low']
+
+/** Threat rank: tier label + score, coloured on the severity ramp. */
+export function ThreatPill({ tier, score }: { tier: string | null | undefined; score?: number | null }) {
+  if (!tier) return <span className="muted">—</span>
+  return <SeverityPill severity={tier.toUpperCase()} score={score ?? undefined} />
+}
+
+export function DetectionTypeBadge({ type }: { type: string | null | undefined }) {
+  if (!type) return <span className="muted">—</span>
+  return <Badge tone={type === 'typosquat' ? 'danger' : type === 'content' ? 'warn' : 'neutral'}>{DETECTION_TYPE_LABEL[type] ?? type}</Badge>
+}
+
+/** Why something ranks where it does: every point with its reason. */
+export function RankFactors({ factors }: { factors: RankFactor[] }) {
+  if (!factors.length) return <span className="muted">Not ranked yet. Run the pipeline.</span>
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: '4px 12px', fontSize: 'var(--fs-sm)', alignItems: 'baseline' }}>
+      {factors.map((f, i) => (
+        <div key={i} style={{ display: 'contents' }}>
+          <span style={{ color: 'var(--text)', whiteSpace: 'nowrap' }}>{f.factor}</span>
+          <span className="muted" style={{ overflow: 'hidden', textOverflow: 'ellipsis' }} title={f.detail}>{f.detail}</span>
+          <span className="num mono" style={{ color: 'var(--text)' }}>{f.points > 0 ? '+' : ''}{f.points}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export const Geo = ({ cc }: { cc: string | null | undefined }) => cc ? <span title={countryName(cc)}>{flag(cc)} <span className="mono">{cc}</span></span> : <span className="muted">—</span>
 
 export function SampleTable({ rows, hideCampaign, hideKit, maxHeight = '65vh', empty }: { rows: SampleOut[]; hideCampaign?: boolean; hideKit?: boolean; maxHeight?: string; empty?: ReactNode }) {
@@ -52,13 +83,19 @@ export function SampleTable({ rows, hideCampaign, hideKit, maxHeight = '65vh', e
       empty={empty ?? <EmptyState title="No samples" />}
       columns={[
         { key: 'shot', header: '', width: '52px', render: (r) => <span onClick={(e) => e.stopPropagation()}><ScreenshotThumb src={r.screenshot_url} size={40} /></span> },
+        { key: 'threat', header: 'Threat', sort: (r) => r.threat_score, render: (r) => <ThreatPill tier={r.threat_tier} score={r.threat_score} /> },
         { key: 'url', header: 'URL', sort: (r) => r.url, render: (r) => <div style={{ maxWidth: 360 }}><div className="mono" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text)' }} title={r.url}>{r.url}</div><div className="muted" style={{ fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.title ?? ''}>{r.title ? truncate(r.title, 70) : 'no title'}</div></div> },
-        { key: 'brand', header: 'Brand', sort: (r) => r.brand, render: (r) => r.brand ? <Badge tone="accent">{r.brand}</Badge> : <span className="muted">—</span> },
+        { key: 'brand', header: 'Brand', sort: (r) => r.brand ?? r.squat?.brand, render: (r) => (r.brand || r.squat) ? <Badge tone="accent">{r.brand ?? r.squat?.brand}</Badge> : <span className="muted">—</span> },
+        { key: 'dtype', header: 'Detection', sort: (r) => r.detection_type, render: (r) => <span title={r.squat?.evidence ?? ''}><DetectionTypeBadge type={r.detection_type} /></span> },
         { key: 'st', header: 'Capture', sort: (r) => r.fetch_status, render: (r) => <span style={{ display: 'inline-flex', gap: 4, alignItems: 'center' }}><StatusBadge status={r.fetch_status} />{r.http_status && <span className="mono muted">{r.http_status}</span>}</span> },
         { key: 'geo', header: 'Hosting', sort: (r) => r.asn_name, render: (r) => <div style={{ fontSize: 12 }}><Geo cc={r.country} /> <span className="muted" style={{ display: 'inline-block', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', verticalAlign: 'bottom', whiteSpace: 'nowrap' }} title={r.asn_name ?? ''}>{r.asn_name ?? r.asn ?? ''}</span></div> },
         ...(hideCampaign ? [] : [{ key: 'camp', header: 'Campaign', sort: (r: SampleOut) => r.campaign_name, render: (r: SampleOut) => r.campaign_id ? <Link onClick={(e) => e.stopPropagation()} to={`/phishing/campaigns/${r.campaign_id}`} className="mono" style={{ whiteSpace: 'nowrap' }}>{r.campaign_name ?? `#${r.campaign_id}`}</Link> : <span className="muted">unclustered</span> }]),
         ...(hideKit ? [] : [{ key: 'kit', header: 'Kit', sort: (r: SampleOut) => r.kit_name, render: (r: SampleOut) => r.kit_name ? <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}><span style={{ maxWidth: 170, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.kit_name}>{r.kit_name}</span><ConfidenceBadge value={r.kit_confidence} /></span> : <span className="muted">—</span> }]),
-        { key: 'src', header: 'Source', sort: (r) => r.source, render: (r) => <span className="muted">{r.source}</span> },
+        { key: 'src', header: 'Seen in', sort: (r) => (r.sources ?? [r.source]).length * 100 + r.duplicate_count, render: (r) => (
+          <span style={{ display: 'inline-flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }} title={r.duplicate_urls.length ? `Merged duplicates:\n${r.duplicate_urls.join('\n')}` : ''}>
+            {(r.sources?.length ? r.sources : [r.source]).map((x) => <span key={x} className="muted">{x}</span>)}
+            {r.duplicate_count > 0 && <Badge tone="info">+{r.duplicate_count} dup</Badge>}
+          </span>) },
         { key: 'seen', header: 'First seen', sort: (r) => r.first_seen, render: (r) => <span className="muted num" style={{ whiteSpace: 'nowrap' }}>{fmtDate(r.first_seen)}</span> },
         { key: 'v', header: 'Verdict', render: (r) => <VerdictBadge verdict={r.review_verdict} /> },
       ]} />
