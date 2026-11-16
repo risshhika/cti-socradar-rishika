@@ -22,7 +22,8 @@ Requirements: Python 3.12 (`uv` installs it if missing), Node 20+, `uv` (`brew i
 
 ```bash
 make setup          # backend venv + frontend deps
-make run-all        # P6 then P4, ~5-10 min, prints a summary per pipeline
+make configure      # enter YOUR OWN API keys (required once; see below)
+make run-all        # P6 then P4, prints a summary per pipeline
 make build          # production UI bundle
 make serve          # http://127.0.0.1:8000
 ```
@@ -31,9 +32,34 @@ Or everything in one go: `./scripts/run_all.sh`.
 
 For development with hot reload: `make dev` (API on :8000, Vite on :5173 proxying `/api`).
 
-No API keys are needed. Optional keys in `.env` (see `.env.example`) unlock urlscan.io DOM downloads
-(instead of visiting phishing pages directly) and Claude-assisted classification / briefing prose.
-Every LLM prompt is logged to `data/artifacts/prompts.jsonl`.
+### Your own API keys (required step)
+
+**No API keys are included in this repository.** Keys are personal: each one is tied to the account and quota
+of the person who created it. Before the platform runs, every user goes through setup once:
+
+```bash
+cd backend && python -m app.cli setup     # or: make configure
+```
+
+Setup asks for each key, says what it unlocks and where to get it, hides what you type, optionally checks
+the urlscan.io and Shodan keys against their free account endpoints, and writes everything to `.env` at
+the repo root (git-ignored, owner-only). `serve` and `run` refuse to start until setup has been completed;
+from a terminal they offer to run it, from a non-interactive launcher they exit with instructions. After
+setup, each start prints which keys are configured and asks before continuing if a recommended one is
+missing. `python -m app.cli keys` shows the status at any time; re-run `setup` to change a key.
+
+| Key | | Unlocks |
+|---|---|---|
+| `CTIOPS_REPORT_REPORTER` | recommended | your name as reporter on client and brand reports |
+| `CTIOPS_URLSCAN_API_KEY` | recommended | P4 search quotas; scan DOMs instead of visiting phishing pages |
+| `CTIOPS_REGISTRY_USER_AGENT` | recommended | P6 victim revenue, employees, industry (Wikidata, SEC EDGAR) |
+| `CTIOPS_SHODAN_API_KEY` | optional | P6 victim identification by exposed technology |
+| `CTIOPS_X_BEARER_TOKEN` | optional | P6 scheduled X access-broker monitoring |
+| `CTIOPS_ZOOMINFO_USERNAME` / `_PASSWORD` | optional | ZoomInfo company data (enterprise contract) |
+| `CTIOPS_ANTHROPIC_API_KEY` | optional | LLM-assisted classification and briefing prose (prompts logged to `data/artifacts/prompts.jsonl`) |
+
+Every key is optional in the sense that the platform runs without it, with the matching feature off.
+`.env.example` documents the same keys for anyone who prefers to fill `.env` by hand.
 
 Scope (sector, brands, region, window, IAB feeds) is in `config/scope.yaml` and editable in the UI
 under **Scope & Settings**. Pipelines can be run from the UI (**Pipelines & Runs**) or the CLI:

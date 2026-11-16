@@ -1,9 +1,12 @@
 """P4 pipeline: collect -> fetch -> features -> fingerprint -> cluster -> detections -> persist."""
 from __future__ import annotations
 
+import hashlib
+import os
 import sys
 import time
 from collections import Counter
+from pathlib import Path
 from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, ThreadPoolExecutor, as_completed, wait
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -24,12 +27,27 @@ from .leads import Lead, NRDCollector
 from .rank import threat_rank
 from .typosquat import BrandSpec, build_specs, match_host
 
-FETCH_THREADS = 8
+FETCH_THREADS = 24  # page fetches are network-bound (10s timeout); more threads hide slow and dead hosts
 REFETCH_AFTER = timedelta(hours=12)
 ACTIVE_WINDOW = timedelta(days=3)
-FEATURE_WORKERS = 4
-FEATURE_TIMEOUT = 45.0  # seconds per page; one pathological page once stalled a run for ~2 hours
+FEATURE_WORKERS = max(2, min(8, (os.cpu_count() or 4) - 2))
+FEATURE_TIMEOUT = 25.0  # seconds per page; normal pages take <1s, a pathological one once stalled a run for ~2 hours
 MAX_ALT_URLS = 25
+
+
+def _feature_version() -> str:
+    """Changes whenever the extractor, the kit fingerprinting or the kit signatures change, so pages are
+    re-extracted then; otherwise a page whose HTML is unchanged keeps its features from the last run."""
+    here = Path(__file__).parent
+    h = hashlib.sha256()
+    for name in ("features.py", "fingerprint.py", "kits.yaml"):
+        p = here / name
+        if p.exists():
+            h.update(p.read_bytes())
+    return h.hexdigest()[:12]
+
+
+FEATURE_VERSION = _feature_version()
 
 
 def _utc(dt: datetime | None) -> datetime | None:
@@ -302,16 +320,18 @@ def fetch_samples(ctx: RunContext, urlscan: UrlscanCollector) -> dict[str, int]:
     now = datetime.now(timezone.utc)
     with ctx.session() as session:
         rows = [s for s in session.exec(select(PhishSample)) if _needs_fetch(s, now)]
-        todo = [(s.id, s.url, s.source_id) for s in rows]
+        todo = [(s.id, s.url, s.source_id, s.ip) for s in rows]
     ctx.log(f"fetching {len(todo)} pages with {FETCH_THREADS} threads (10s timeout, 2MB cap, no JS)")
     counts: Counter[str] = Counter()
     use_api = bool(get_settings().urlscan_api_key)
 
     def work(item):
-        sid, url, uuid = item
+        sid, url, uuid, known_ip = item
         if use_api and uuid:
             dom = urlscan.fetch_dom(uuid)
-            res = urlscan.fetch_result(uuid) or {}
+            # The search hit already gave IP and URL; the scan result (same rate limit as the DOM) is only
+            # worth a call when the IP is still unknown, and only once the DOM was actually retrieved.
+            res = (urlscan.fetch_result(uuid) or {}) if dom and not known_ip else {}
             if dom:
                 sha, rel, size = fetchmod.store_html(dom)
                 page = res.get("page", {})
@@ -399,9 +419,9 @@ def _featurize_all(ctx: RunContext, jobs: list[tuple[int, str | None, str, str |
         pool = ProcessPoolExecutor(max_workers=FEATURE_WORKERS)
         inflight: dict[Any, int] = {}
         started: dict[Any, float] = {}
-        stuck: int | None = None
+        stuck: list[int] = []
         try:
-            while (queue or inflight) and stuck is None:
+            while (queue or inflight) and not stuck:
                 while queue and len(inflight) < FEATURE_WORKERS * 2:
                     sid, rel, url, hint = queue.pop(0)
                     html = _read_html(rel)
@@ -423,17 +443,20 @@ def _featurize_all(ctx: RunContext, jobs: list[tuple[int, str | None, str, str |
                     done_n += 1
                     if done_n % 100 == 0:
                         ctx.log(f"  features {done_n}/{len(jobs)}")
-                for fut, sid in inflight.items():
+                for fut in inflight:
                     if fut.running():
                         started.setdefault(fut, now)
-                        if now - started[fut] > FEATURE_TIMEOUT:
-                            stuck = sid
-                            break
+                if any(now - t > FEATURE_TIMEOUT for t in started.values()):
+                    # A normal page takes well under a second, so anything past half the cap is pathological too:
+                    # abandon them all in one pool teardown instead of restarting each from zero and timing it out
+                    # again one after another.
+                    stuck = [inflight[f] for f, t in started.items() if f in inflight and now - t > FEATURE_TIMEOUT / 2]
         finally:
-            if stuck is not None:
-                results[stuck] = TimeoutError(f"feature extraction exceeded {FEATURE_TIMEOUT:.0f}s")
-                ctx.log(f"  sample {stuck}: feature extraction timed out, skipped")
-                queue = [by_id[i] for i in inflight.values() if i != stuck] + queue
+            if stuck:
+                for sid in stuck:
+                    results[sid] = TimeoutError(f"feature extraction exceeded {FEATURE_TIMEOUT:.0f}s")
+                    ctx.log(f"  sample {sid}: feature extraction timed out, skipped")
+                queue = [by_id[i] for i in inflight.values() if i not in stuck] + queue
                 for proc in list(getattr(pool, "_processes", {}).values()):
                     proc.terminate()
                 pool.shutdown(wait=False, cancel_futures=True)
@@ -442,12 +465,25 @@ def _featurize_all(ctx: RunContext, jobs: list[tuple[int, str | None, str, str |
     return results
 
 
+def _features_fresh(s: PhishSample) -> bool:
+    f = s.features or {}
+    return "struct_hash" in f and f.get("_fv") == FEATURE_VERSION and f.get("_fv_sha") == s.html_sha256
+
+
 def extract_all(ctx: RunContext) -> dict[str, Any]:
     with ctx.session() as session:
         kits = ensure_signature_kits(session)
-        rows = session.exec(select(PhishSample).where(PhishSample.fetch_status == "ok")).all()
-        ctx.log(f"extracting features for {len(rows)} captured pages "
-                f"({FEATURE_WORKERS} workers, {FEATURE_TIMEOUT:.0f}s cap per page)")
+        all_rows = session.exec(select(PhishSample).where(PhishSample.fetch_status == "ok")).all()
+        rows = [s for s in all_rows if not _features_fresh(s)]
+        # pages that already hung the extractor with this exact HTML: skip instead of burning the timeout again
+        hung = [s for s in rows if s.html_sha256 and (s.features or {}).get("_timeout_sha") == s.html_sha256]
+        for s in hung:
+            s.fetch_status = "error"
+            session.add(s)
+        rows = [s for s in rows if s not in hung]
+        ctx.log(f"extracting features for {len(rows)} new or changed pages, {len(all_rows) - len(rows) - len(hung)} unchanged kept"
+                + (f", {len(hung)} known-pathological skipped" if hung else "")
+                + f" ({FEATURE_WORKERS} workers, {FEATURE_TIMEOUT:.0f}s cap per page)")
         jobs = [(s.id, s.html_path, s.final_url or s.url, s.features.get("_brand_hint")) for s in rows]
         results = _featurize_all(ctx, jobs)
         brands: Counter[str] = Counter()
@@ -461,11 +497,13 @@ def extract_all(ctx: RunContext) -> dict[str, Any]:
                 else:
                     err = f"{type(res).__name__}: {str(res)[:160]}" if res is not None else "not processed"
                     s.features = {**s.features, "_feature_error": err}
+                    if isinstance(res, TimeoutError):
+                        s.features = {**s.features, "_timeout_sha": s.html_sha256}
                 session.add(s)
                 continue
             feats, kit = res
             keep = {k: v for k, v in s.features.items() if k.startswith("_")}
-            s.features = {**keep, **feats}
+            s.features = {**keep, **feats, "_fv": FEATURE_VERSION, "_fv_sha": s.html_sha256}
             s.title = feats["title"] or s.title
             s.struct_hash = feats["struct_hash"]
             s.brand, s.brand_confidence = feats["brand"], feats["brand_confidence"]
@@ -481,7 +519,8 @@ def extract_all(ctx: RunContext) -> dict[str, Any]:
         session.commit()
     timeouts = sum(1 for r in results.values() if isinstance(r, TimeoutError))
     ctx.log(f"brands detected: {dict(brands.most_common(10))}; kit matches: {dict(kit_hits)}; timeouts: {timeouts}")
-    return {"pages": len(rows), "brands": dict(brands.most_common(20)), "kit_matches": dict(kit_hits), "timeouts": timeouts}
+    return {"pages": len(rows), "unchanged": len(all_rows) - len(rows), "brands": dict(brands.most_common(20)),
+            "kit_matches": dict(kit_hits), "timeouts": timeouts}
 
 
 # --------------------------------------------------------------------------- cluster + detections

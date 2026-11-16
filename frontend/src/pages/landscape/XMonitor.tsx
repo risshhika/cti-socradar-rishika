@@ -30,7 +30,7 @@ export default function XMonitor() {
 
   const header = (
     <PageHeader kicker="P6 · Threat landscape" title="X access-broker monitor"
-      subtitle={<>Public X posts matching the five IAB queries, narrowed to {st?.sectors.join(', ') || 'financial services'}. Every match keeps the API record, its images and a rendered post card, each hashed at capture. Victims are sized from public company registries.</>}
+      subtitle={<>Public X posts matching the IAB queries{st?.accounts?.length ? <> and everything posted by {st.accounts.map((a) => `@${a}`).join(', ')}</> : null}, narrowed to {st?.sectors.join(', ') || 'financial services'}. Every match keeps the API record, its images and a rendered post card, each hashed at capture. Victims are sized from public company registries.</>}
       actions={<RunPipelineButton name="x_iab" label="Run X monitor" />} />
   )
   if (list.isLoading || status.isLoading) return <>{header}<Loading rows={8} /></>

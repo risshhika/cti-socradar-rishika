@@ -38,17 +38,20 @@ SECTOR_CLAUSES = {
 
 FIN_SUBTYPES: list[tuple[str, re.Pattern[str]]] = [
     ("Credit union", re.compile(r"\bcredit unions?\b", re.I)),
-    ("Crypto exchange", re.compile(r"\b(crypto(currency)? exchange|exchange wallet|crypto platform|defi|web3 (wallet|exchange))\b", re.I)),
-    ("Payments", re.compile(r"\b(payments?( processor| provider| gateway| company| platform)?|psp|acquirer|card processing|merchant services|remittance|money transfer)\b", re.I)),
+    ("Crypto exchange", re.compile(r"\b(crypto(currency)? exchange|exchange wallet|crypto platform|defi|dex|web3 (wallet|exchange))\b", re.I)),
+    ("Payments", re.compile(r"\b(payments?( processor| provider| gateway| company| platform| switch)|psp|acquirer|card processing|merchant services|remittance|money transfer|digital wallet|stored-value)\b", re.I)),
     ("Insurance", re.compile(r"\b(insurance|insurer|underwriter|reinsurance|assurance)\b", re.I)),
-    ("Brokerage / asset management", re.compile(r"\b(brokerage|broker-dealer|asset management|wealth management|investment (firm|bank)|hedge fund|trading platform|forex)\b", re.I)),
-    ("Fintech", re.compile(r"\b(fintech|neobank|digital bank|banking app|bnpl|buy now,? pay later)\b", re.I)),
-    ("Bank", re.compile(r"\b(banks?|banking|bancorp|financial institution|savings and loan)\b", re.I)),
-    ("Lending", re.compile(r"\b(lender|lending|mortgage|loans?|microfinance|credit company)\b", re.I)),
+    ("Brokerage / asset management", re.compile(r"\b(brokerage|broker-dealer|asset management|wealth management|investment (firm|bank)|hedge fund|trading platform|securities firm|forex (brokers?|trading|platform))\b", re.I)),
+    ("Fintech", re.compile(r"\b(fintech|neobank|digital bank\w*|banking app|banking software|bnpl|buy now,? pay later)\b", re.I)),
+    ("Bank", re.compile(r"\b(banks?|banking|bancorp|banco|banque|banca|central bank|financial institution|savings and loan|savings and credit)\b", re.I)),
+    ("Lending", re.compile(r"\b(lender|lending|mortgage|loans?|microfinance|micro-?lender|credit company)\b", re.I)),
 ]
 FIN_ANY = re.compile("|".join(f"(?:{r.pattern})" for _, r in FIN_SUBTYPES) + r"|\bfinancial\b", re.I)
-# false friends: "bank holiday", "food bank", "blood bank", "power bank", "data bank", "river bank"
-FIN_NOISE = re.compile(r"\b(bank holiday|food banks?|blood banks?|power banks?|data banks?|river ?banks?|memory banks?|piggy banks?)\b", re.I)
+# false friends: "bank holiday", "food bank" ... and victim *data* types at non-financial firms ("payment details",
+# "bank details", "banking records" leaked from a retailer or an agency do not make the victim a financial firm)
+FIN_NOISE = re.compile(r"\b(bank holiday|food banks?|blood banks?|power banks?|data banks?|river ?banks?|memory banks?|piggy banks?"
+                       r"|payment[- ]?(?:card )?(?:information|info|details|data)|(?:payroll )?bank(?:ing)? (?:details|records|information|data|account details)"
+                       r"|payments? (?:and|or) (?:card|billing)|billing and payment)\b", re.I)
 
 FORUMS = {"Exploit": r"\bexploit(\.in| forum)\b", "XSS": r"\bxss(\.is| forum)\b", "BreachForums": r"\bbreach ?forums?\b",
           "RAMP": r"\bramp (forum|marketplace)\b|\bramp4u\b", "DarkForums": r"\bdark ?forums\b", "LeakBase": r"\bleak ?base\b",
@@ -60,11 +63,14 @@ ORG_RE = re.compile(
     r"\b((?:[A-Z][\w&'.-]*[ ]){0,4}(?:Bank|Bancorp|Banco|Banque|Credit Union|Financial|Finance|Capital|Securities|Insurance|"
     r"Assurance|Payments?|Pay|Trust|Savings|Investments?|Holdings|Exchange|Brokerage|Fintech)"
     r"(?:[ ](?:of|de|del|do)(?:[ ][A-Z][\w&'.-]*){1,3})?)\b")
-NOISE_WORDS = r"(?:The|A|An|Selling|Sale|Access|Initial|Breach|Hacked|Leaked|Alleged|New|US|UK|EU|From|Preventive|Alert|Data|Exfiltration)"
+NOISE_WORDS = (r"(?:The|A|An|Selling|Sale|Access|Initial|Breach|Hacked|Leaked|Alleged|Allegedly|New|US|USA|UK|EU|From|Preventive|"
+               r"Alert|Data|Exfiltration|Seller|Seller Claims|Claims|Claim|Tied|To|Account|Card|And|Of|Customer|Confirms|"
+               r"Database|Leak|For|Lists|Listed|Ransom|Inc)")
 DOMAIN_RE = re.compile(r"\b((?:[a-z0-9-]+\.)+(?:com|net|org|io|co|bank|finance|fi|uk|de|fr|it|es|nl|ch|au|ca|in|br|mx|sg|ae|sa|tr|pl|ru|ua|za|ng|ke|id|my|ph|vn|hk|jp|kr|cn|tw|us|eu))\b", re.I)
 GENERIC_ORG = {"bank", "the bank", "a bank", "us bank", "financial", "finance", "capital", "insurance", "payments", "pay",
                "trust", "exchange", "holdings", "investments", "investment", "securities", "savings", "brokerage", "fintech",
-               "credit union", "initial access", "access", "breach", "corporate access"}
+               "credit union", "initial access", "access", "breach", "corporate access", "crypto exchange",
+               "digital bank", "central bank", "payment platform", "financial services"}
 NOT_VICTIM_DOMAINS = re.compile(r"(^|\.)(x|twitter|t|tiktok|youtube|youtu|github|medium|linkedin|facebook|instagram|telegram|t\.me|"
                                 r"bleepingcomputer|therecord|securityweek|darkreading|thehackernews|databreaches|cybernews|"
                                 r"hackread|socradar|kelacyber|kela|flashpoint|intel471|hudsonrock|falconfeeds|darkwebinformer|"
@@ -72,6 +78,26 @@ NOT_VICTIM_DOMAINS = re.compile(r"(^|\.)(x|twitter|t|tiktok|youtube|youtu|github
 
 
 # --------------------------------------------------------------------------- query building
+
+ACCOUNTS_LABEL = "Watched accounts"
+
+
+def account_query(handles: list[str]) -> str | None:
+    """Everything the watched accounts post (no has:images: their text posts name victims too)."""
+    hs = [h.strip().lstrip("@") for h in handles if h and h.strip()]
+    if not hs:
+        return None
+    return "(" + " OR ".join(f"from:{h}" for h in hs) + ")"
+
+
+def all_queries(queries: list[dict[str, str]], accounts: list[str]) -> list[dict[str, str]]:
+    """The keyword queries plus one query for the watched accounts (sector narrowing is added by build_query)."""
+    out = list(queries)
+    aq = account_query(accounts)
+    if aq:
+        out.append({"label": ACCOUNTS_LABEL, "query": aq})
+    return out
+
 
 def build_query(q: str, sectors: list[str]) -> str:
     """User query + sector narrowing + no retweets. X caps a query at 512 characters (Basic)."""

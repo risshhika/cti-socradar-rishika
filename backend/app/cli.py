@@ -21,10 +21,14 @@ def main(argv: list[str] | None = None) -> int:
     r = sub.add_parser("run", help="run a pipeline from a clean start")
     r.add_argument("pipeline", choices=["phishing", "landscape", "all"])
     r.add_argument("--param", action="append", default=[], help="key=value overrides")
+    r.add_argument("--yes", action="store_true", help="don't ask for confirmation (setup must still be done)")
     s = sub.add_parser("serve")
     s.add_argument("--host", default="127.0.0.1")
     s.add_argument("--port", type=int, default=8000)
     s.add_argument("--reload", action="store_true")
+    s.add_argument("--yes", action="store_true", help="don't ask for confirmation (setup must still be done)")
+    sub.add_parser("setup", help="enter your own API keys (required once per machine; keys are not in the repo)")
+    sub.add_parser("keys", help="show which API keys are configured")
     rp = sub.add_parser("report", help="render a client report (approved template, no internal source names)")
     src = rp.add_mutually_exclusive_group(required=True)
     src.add_argument("--spec", help="hand-written report spec (JSON), e.g. docs/reports/*.json")
@@ -40,6 +44,16 @@ def main(argv: list[str] | None = None) -> int:
     xs.add_argument("tweet_id")
     xs.add_argument("image")
     args = p.parse_args(argv)
+
+    from . import setup_wizard
+    if args.cmd == "setup":
+        return 0 if setup_wizard.run_setup() else 1
+    if args.cmd == "keys":
+        print("\n".join(setup_wizard.status_lines()))
+        print("\nsetup completed" if setup_wizard.is_configured() else "\nsetup NOT completed: run `python -m app.cli setup`")
+        return 0
+    if args.cmd in ("run", "serve") and not setup_wizard.preflight(args.cmd, assume_yes=args.yes):
+        return 2
 
     init_db()
     if args.cmd == "run":
@@ -97,7 +111,7 @@ def main(argv: list[str] | None = None) -> int:
                 from .db import get_engine
                 from .models import PhishCampaign
                 from .config import load_scope
-                who = args.reporter or load_scope().phishing.report_reporter or "Analyst"
+                who = setup_wizard.reporter_name(args.reporter)
                 with Session(get_engine()) as sess:
                     if args.brand:
                         spec = cr.build_for_brand(sess, args.brand, who, args.classification)

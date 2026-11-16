@@ -241,7 +241,8 @@ def brand_report_html(brand: str, download: bool = False, reporter: str | None =
     brand's leading campaign. Refuses (422) if any visible text names an internal source."""
     from ..config import load_scope
     from ..modules.phishing import client_report as cr
-    who = reporter or load_scope().phishing.report_reporter or "Analyst"
+    from ..setup_wizard import reporter_name
+    who = reporter_name(reporter)
     try:
         spec = cr.build_for_brand(session, brand, who, classification)
         body = cr.render(spec)
@@ -269,7 +270,8 @@ def sample_screenshot(sample_id: int, session: Session = Depends(get_session)):
 def _client_spec(session: Session, campaign_id: int, reporter: str | None, classification: str, force: bool, screenshots: str):
     from ..config import load_scope
     from ..modules.phishing import client_report as cr
-    who = reporter or load_scope().phishing.report_reporter or "Analyst"
+    from ..setup_wizard import reporter_name
+    who = reporter_name(reporter)
     try:
         return cr.build_from_campaign(session, campaign_id, who, classification, screenshots=screenshots, force=force)
     except cr.NotReportable as e:

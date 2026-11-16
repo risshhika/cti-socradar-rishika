@@ -201,6 +201,8 @@ def gleif(name: str, client: CachedClient, country_hint: str | None = None) -> d
     rows = [d for d in found.values()
             if d["attributes"]["entity"].get("category") not in ("BRANCH", "FUND") and d["attributes"]["entity"].get("status") == "ACTIVE"
             and _name_match(d["attributes"]["entity"]["legalName"]["name"], name)]
+    if country_hint:  # a same-named company in another country is a different victim (CoinOne AB, SE != Coinone, KR)
+        rows = [d for d in rows if d["attributes"]["entity"].get("legalAddress", {}).get("country") == country_hint]
     if not rows:
         return None
     rows.sort(key=lambda d: (d["attributes"]["entity"].get("legalAddress", {}).get("country") != country_hint,

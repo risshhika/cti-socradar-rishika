@@ -11,7 +11,9 @@ Credit: WhoisDS.com.
 from __future__ import annotations
 
 import base64
+import hashlib
 import io
+import json
 import logging
 import zipfile
 from dataclasses import dataclass, field
@@ -85,13 +87,39 @@ class NRDCollector:
         path.write_text("\n".join(names), encoding="utf-8")
         return names
 
+    def _spec_key(self) -> str:
+        """Matches depend only on the day's list (immutable), the brand specs and the matcher code."""
+        from pathlib import Path
+
+        from . import typosquat
+        src = Path(typosquat.__file__).read_bytes()
+        # sorted: official/exclusions come from sets, whose order changes between processes (hash randomisation)
+        specs = json.dumps(sorted([s.name, s.slug, list(s.fragments), sorted(s.official), sorted(s.exclusions)] for s in self.specs))
+        return hashlib.sha256(src + specs.encode()).hexdigest()[:12]
+
+    def _day_matches(self, day: date, names: list[str], key: str) -> list[tuple[str, SquatMatch]]:
+        path = self.dir / f"{day.isoformat()}.matches.{key}.json"
+        if path.exists():
+            try:
+                return [(d, SquatMatch(**m)) for d, m in json.loads(path.read_text(encoding="utf-8"))]
+            except (ValueError, TypeError):
+                path.unlink(missing_ok=True)
+        hits = [(d, m) for d in names if (m := match_host(d, self.specs))]
+        path.write_text(json.dumps([[d, m.as_dict()] for d, m in hits]), encoding="utf-8")
+        for old in self.dir.glob(f"{day.isoformat()}.matches.*.json"):  # drop caches from older specs
+            if old != path:
+                old.unlink(missing_ok=True)
+        return hits
+
     def collect(self) -> list[Lead]:
         today = datetime.now(timezone.utc).date()
         out: list[Lead] = []
         days_ok = 0
+        key = self._spec_key()
         with _client() as http:
             for back in range(1, self.days + 1):  # the list for day D is published on D+1
                 day = today - timedelta(days=back)
+                cached = (self.dir / f"{day.isoformat()}.matches.{key}.json").exists()
                 names = self._day_domains(day, http)
                 if names is None:
                     self.status.errors += 1
@@ -99,14 +127,12 @@ class NRDCollector:
                 days_ok += 1
                 self.status.scanned += len(names)
                 seen_at = datetime(day.year, day.month, day.day, tzinfo=timezone.utc)
-                n = 0
-                for d in names:
-                    m = match_host(d, self.specs)
-                    if m:
-                        out.append(Lead(domain=canonical_host(d), source="nrd", match=m, first_seen=seen_at,
-                                        meta={"registered": day.isoformat()}))
-                        n += 1
-                self._log(f"nrd {day}: {len(names):,} new domains, {n} brand matches")
+                hits = self._day_matches(day, names, key)
+                for d, m in hits:
+                    out.append(Lead(domain=canonical_host(d), source="nrd", match=m, first_seen=seen_at,
+                                    meta={"registered": day.isoformat()}))
+                self._log(f"nrd {day}: {len(names):,} new domains, {len(hits)} brand matches"
+                          + (" (cached)" if cached else ""))
         self.status.matched = len(out)
         self.status.status = "ok" if days_ok == self.days else "degraded" if days_ok else "down"
         self.status.detail = f"{days_ok}/{self.days} days, {self.status.scanned:,} domains scanned, {len(out)} matches"

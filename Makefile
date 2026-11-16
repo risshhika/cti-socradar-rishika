@@ -1,8 +1,16 @@
-.PHONY: setup backend frontend build run-phishing run-landscape run-all serve dev test clean-data
+.PHONY: setup configure keys backend frontend build run-phishing run-landscape run-all serve dev test clean-data
 
 PY=backend/.venv/bin/python
 
 setup: backend frontend          ## install everything from a clean checkout
+	@echo ""
+	@echo "Next: make configure   (enter your own API keys; none are included in the repository)"
+
+configure:                       ## interactive: enter your own API keys into .env (required once)
+	cd backend && .venv/bin/python -m app.cli setup
+
+keys:                            ## show which API keys are configured
+	cd backend && .venv/bin/python -m app.cli keys
 
 backend:
 	cd backend && uv venv --python 3.12 .venv && uv pip install --python .venv/bin/python -e ".[dev]"

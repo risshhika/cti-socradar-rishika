@@ -21,8 +21,9 @@ phishing:
   urlscan_queries_per_brand: 2
   # Typosquat leads from WhoisDS newly-registered domains: the strongest are fetched as samples.
   max_leads_promoted: 80
-  # Name printed as reporter on client reports
-  report_reporter: Rishika Desai
+  # Name printed as reporter on client reports. Leave empty here: each user sets their own via `cli setup`
+  # (CTIOPS_REPORT_REPORTER in .env), which takes precedence.
+  report_reporter: ""
   # Fragment chains: PayPal [pay, pal] matches pay*pal* (pay-pal, paypa1, pay.pal-ai ...).
   # Brands not listed are split automatically (multi-word -> words; 7+ letters -> two halves).
   brand_fragments:
@@ -65,6 +66,10 @@ landscape:
   # (see x_sectors), retweets are excluded, and every match is preserved: raw record, images, post card.
   x_sectors: ["Financial Services"]
   x_max_pages: 2
+  # Watched accounts: every post they make (retweets excluded) is checked, not only those matching a query.
+  x_accounts:
+    - DailyDarkWeb
+    - DarkWebInformer
   x_queries:
     - label: IAB keywords
       query: '("initial access" OR "access broker") has:images'

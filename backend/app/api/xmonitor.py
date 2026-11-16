@@ -12,7 +12,7 @@ from ..config import get_settings, load_scope
 from ..db import get_session
 from ..models import Organization, XPost
 from ..modules.landscape import firmographics as fg
-from ..modules.landscape.xmon import build_query
+from ..modules.landscape.xmon import all_queries, build_query
 
 router = APIRouter(prefix="/api/landscape/x", tags=["x-monitor"])
 
@@ -47,7 +47,8 @@ def status():
     s, sc = get_settings(), load_scope().landscape
     return {"x_api": bool(s.x_bearer_token), "registries": bool(s.registry_user_agent), "zoominfo": bool(s.zoominfo_username),
             "shodan": bool(s.shodan_api_key),
-            "sectors": sc.x_sectors, "queries": [{**q, "sent_as": build_query(q["query"], sc.x_sectors)} for q in sc.x_queries],
+            "sectors": sc.x_sectors, "accounts": sc.x_accounts,
+            "queries": [{**q, "sent_as": build_query(q["query"], sc.x_sectors)} for q in all_queries(sc.x_queries, sc.x_accounts)],
             "revenue_bands": [b for _, b in fg.REVENUE_BANDS], "employee_bands": [b for _, b in fg.EMPLOYEE_BANDS]}
 
 

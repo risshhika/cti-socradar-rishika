@@ -30,7 +30,8 @@ def _load_state() -> dict[str, str]:
         return {}
 
 
-def store_post(session: Session, p: dict[str, Any], label: str, sectors: list[str], client: httpx.Client) -> tuple[XPost | None, bool]:
+def store_post(session: Session, p: dict[str, Any], label: str, sectors: list[str], client: httpx.Client,
+               selected: bool = False) -> tuple[XPost | None, bool]:
     """Upsert one API post. Returns (row or None if out of sector, created?)."""
     t = p["tweet"]
     row = session.exec(select(XPost).where(XPost.tweet_id == t["id"])).first()
@@ -43,7 +44,7 @@ def store_post(session: Session, p: dict[str, Any], label: str, sectors: list[st
     links = [u for u in links if "x.com/" not in u and "twitter.com/" not in u]
     alts = [m.get("alt_text") or "" for m in p["media"]]
     ex = xmon.extract(t.get("text", ""), links, alts)
-    if not xmon.in_sectors(ex, sectors):
+    if not selected and not xmon.in_sectors(ex, sectors):  # analyst-selected posts skip the automatic filter
         return None, False
     raw_path, raw_sha = xmon.save_record(p)
     media = xmon.save_media(p, client)
@@ -74,8 +75,9 @@ def run(ctx: RunContext) -> dict[str, Any]:
     sc = ctx.scope.landscape
     token = get_settings().x_bearer_token
     sectors = ctx.params.get("sectors") or sc.x_sectors
-    if not sc.x_queries:
-        raise RuntimeError("no X queries configured (landscape.x_queries in config/scope.yaml)")
+    queries = xmon.all_queries(sc.x_queries, sc.x_accounts)
+    if not queries:
+        raise RuntimeError("no X queries or accounts configured (landscape.x_queries / x_accounts in config/scope.yaml)")
     if not token:
         raise RuntimeError("CTIOPS_X_BEARER_TOKEN is not set in .env: the X monitor needs an X API bearer token "
                            "(Basic tier or higher for recent search)")
@@ -84,7 +86,7 @@ def run(ctx: RunContext) -> dict[str, Any]:
     out: dict[str, Any] = {"sectors": sectors, "queries": {}}
     kept = new = 0
     with ctx.session() as session, httpx.Client(timeout=30, follow_redirects=True) as media_client:
-        for q in sc.x_queries:
+        for q in queries:
             label, query = q["label"], xmon.build_query(q["query"], sectors)
             ctx.log(f"query {label!r}: {query}")
             try:
@@ -151,7 +153,7 @@ def import_browser_posts(session: Session, items: list[dict[str, Any]], sectors:
     with httpx.Client(timeout=30, follow_redirects=True) as client:
         for it in items:
             p = browser_item_to_post(it)
-            row, created = store_post(session, p, it.get("query", "browser"), sectors, client)
+            row, created = store_post(session, p, it.get("query", "browser"), sectors, client, selected=bool(it.get("selected")))
             if row is None:
                 skipped += 1
                 continue

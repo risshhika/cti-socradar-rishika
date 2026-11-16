@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     # Shodan API key (CTIOPS_SHODAN_API_KEY): passive read of Shodan's host database to see which exposed
     # endpoint runs a named product (e.g. Pulse Secure) for victim identification. We never connect to a host.
     shodan_api_key: str | None = None
+    report_reporter: str = ""  # CTIOPS_REPORT_REPORTER: author name on client reports (set by `cli setup`)
     anthropic_model: str = "claude-sonnet-5-5"
     http_timeout: float = 20.0
     cache_ttl_seconds: int = 6 * 3600
@@ -88,6 +89,7 @@ class LandscapeScope(BaseModel):
     iab_feeds: list[str] = Field(default_factory=list)
     # X (Twitter) IAB monitor: recent-search queries (7-day window on the X API), run for these sectors only
     x_queries: list[dict[str, str]] = Field(default_factory=list)  # {label, query}
+    x_accounts: list[str] = Field(default_factory=list)  # watched handles: everything they post, sector-filtered
     x_sectors: list[str] = Field(default_factory=lambda: ["Financial Services"])
     x_max_pages: int = 2  # 100 posts per page, per query, per run (X API read quota)
 

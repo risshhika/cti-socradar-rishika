@@ -41,6 +41,16 @@ def test_news_and_social_domains_are_not_victims():
     assert c == []
 
 
+def test_watched_accounts_query():
+    qs = xmon.all_queries([{"label": "IAB keywords", "query": '"initial access" has:images'}], ["DailyDarkWeb", "@DarkWebInformer"])
+    acc = qs[-1]
+    assert acc["label"] == xmon.ACCOUNTS_LABEL
+    assert acc["query"] == "(from:DailyDarkWeb OR from:DarkWebInformer)"
+    sent = xmon.build_query(acc["query"], ["Financial Services"])
+    assert "has:images" not in sent and "(bank OR" in sent and sent.endswith("-is:retweet")
+    assert xmon.all_queries([], []) == []
+
+
 def test_bands():
     assert fg.revenue_band(1.2e9) == "$1B-$10B" and fg.revenue_band(5e6) == "<$10M" and fg.revenue_band(None) is None
     assert fg.employee_band(150) == "51-200" and fg.employee_band(25000) == "10,000+"
