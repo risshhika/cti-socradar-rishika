@@ -162,4 +162,4 @@ make test
 
 ## Know-how report
 
-See `docs/KNOWHOW_REPORT.md` (milestones, methods, prompts, results & limitations) and `docs/PROMPTS.md`.
+See `docs/KNOWHOW_REPORT.md` (milestones, methods, prompts, results & limitations).
