@@ -165,8 +165,12 @@ def _ask(k: Key, current: str) -> str | None:
     hint = f"current: {_mask(current) if k.secret else current}; Enter keeps it, '-' clears it" if current \
         else "Enter to skip"
     prompt = f"  Value ({hint}): "
+    # Git Bash / mintty on Windows has no real console, and getpass hangs there: fall back to visible input.
+    hidden = k.secret and not (os.name == "nt" and os.environ.get("MSYSTEM"))
+    if k.secret and not hidden:
+        print("  (Git Bash cannot hide typing; use PowerShell or `winpty python -m app.cli setup` to hide it)")
     try:
-        v = (getpass.getpass(prompt) if k.secret else input(prompt)).strip()
+        v = (getpass.getpass(prompt) if hidden else input(prompt)).strip()
     except EOFError:
         return None
     if v == "-":
